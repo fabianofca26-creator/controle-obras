@@ -1,0 +1,13 @@
+{
+  "name": "Controle de Obra",
+  "short_name": "Obra",
+  "description": "Controle de contratos, medições e evolução de serviços",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#1f3a2e",
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}

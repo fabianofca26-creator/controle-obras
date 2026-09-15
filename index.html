@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f3a2e">
+<title>Controle de Obra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#fff; --line:#e3e5ea; --line2:#cfd3db;
+  --tx:#161a20; --tx2:#5d646f; --tx3:#8b929d;
+  --ac:#1f3a2e; --ac-tx:#fff;
+  --ok-bg:#e7f4ea; --ok-tx:#1d5b30;
+  --wa-bg:#fdf0d9; --wa-tx:#7a5106;
+  --er-bg:#fbe9e9; --er-tx:#8f2020;
+  --in-bg:#e8eff8; --in-tx:#17436f;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#101317; --card:#181c22; --line:#272c34; --line2:#39404a;
+    --tx:#eceef2; --tx2:#a3abb7; --tx3:#767e8a;
+    --ac:#cfe3d6; --ac-tx:#0f1a14;
+    --ok-bg:#16301f; --ok-tx:#8fd6a4;
+    --wa-bg:#33270f; --wa-tx:#f0c476;
+    --er-bg:#331818; --er-tx:#f0a0a0;
+    --in-bg:#152538; --in-tx:#9dc4ee;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,h3{font-weight:600;margin:0}
+button{font:inherit;color:inherit}
+.app{min-height:100vh;display:grid;grid-template-columns:1fr}
+aside{display:none}
+.col{min-width:0;padding-bottom:78px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 14px 10px;display:flex;align-items:center;gap:10px}
+header .t{flex:1;min-width:0}
+header h1{font-size:17px;line-height:1.2}
+header p{margin:0;font-size:12px;color:var(--tx3)}
+main{padding:0 14px}
+.icobtn{background:none;border:0;padding:6px;border-radius:9px;color:var(--tx2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:13px}
+.icobtn:active,.icobtn:hover{background:var(--line)}
+.icobtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--tx2);margin:0 0 5px}
+input,select,textarea{width:100%;font:inherit;background:var(--card);color:var(--tx);border:1px solid var(--line2);border-radius:10px;padding:10px 12px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--ac);outline-offset:-1px}
+.field{margin-bottom:12px}
+.btn{width:100%;background:var(--ac);color:var(--ac-tx);border:0;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer}
+.btn:active,.btn:hover{opacity:.88}
+.btn.sec{background:transparent;color:var(--tx);border:1px solid var(--line2);font-weight:400;padding:10px}
+.btn.sm{width:auto;padding:8px 14px;font-size:13px}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.rows{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card)}
+.row{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line);width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;cursor:pointer;color:inherit}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--bg)}
+.row[aria-current=true]{background:var(--in-bg)}
+.row .g{flex:1;min-width:0}
+.row b{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row small{display:block;font-size:11.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .v{font-size:13px;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.mut{color:var(--tx3)}
+.tag{display:inline-block;font-size:11.5px;padding:3px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
+.tag.ok{background:var(--ok-bg);color:var(--ok-tx)}
+.tag.wa{background:var(--wa-bg);color:var(--wa-tx)}
+.tag.er{background:var(--er-bg);color:var(--er-tx)}
+.tag.in{background:var(--in-bg);color:var(--in-tx)}
+.tag.mut{background:var(--line);color:var(--tx2)}
+.note{border-radius:10px;padding:11px 12px;font-size:13px;display:flex;gap:9px;align-items:flex-start;margin-bottom:10px}
+.note.wa{background:var(--wa-bg);color:var(--wa-tx)}
+.note.in{background:var(--in-bg);color:var(--in-tx)}
+.chip{display:inline-block;font-size:12px;padding:6px 11px;border-radius:14px;border:1px solid var(--line2);color:var(--tx2);cursor:pointer;background:none;margin:0 6px 6px 0}
+.chip[aria-pressed=true]{background:var(--in-bg);color:var(--in-tx);border-color:transparent}
+.sec-t{font-size:12px;color:var(--tx2);margin:16px 0 7px;text-transform:uppercase;letter-spacing:.04em}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi p{margin:0;font-size:11.5px;color:var(--tx2)}
+.kpi b{display:block;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--ac)}
+.hide{display:none!important}
+.voltar{margin-bottom:8px}
+.summary{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.schip{flex:0 0 auto;min-width:150px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--wa-tx);border-radius:10px;padding:9px 11px}
+.schip.done{border-left-color:var(--ok-tx)}
+.schip .n{font-weight:600;font-size:12px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.schip .b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.schip .c{display:flex;gap:10px;margin-top:3px;font-size:11px;color:var(--tx3)}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.bottom button{flex:1;background:none;border:0;padding:9px 0 11px;font-size:11px;color:var(--tx3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.bottom button svg,aside button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav.bottom button[aria-current=page]{color:var(--tx);font-weight:600}
+dialog{border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px);background:var(--card);color:var(--tx);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .dbody{padding:18px}
+dialog h2{font-size:17px;margin-bottom:4px}
+dialog .dacts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+dialog .dacts .btn{width:auto;padding:10px 18px}
+.mats{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.mats td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+.mats td:last-child{text-align:right}
+.filsub{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;background:var(--bg);padding:6px 8px;font-weight:600}
+table.rep{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;display:block;overflow-x:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.rep td,table.rep th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+table.rep td:first-child,table.rep th:first-child{text-align:left;white-space:normal}
+table.rep th{color:var(--tx2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.reali{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 8px;border-radius:10px;cursor:pointer;background:var(--line);color:var(--tx2)}
+.reali.on{background:var(--ok-bg);color:var(--ok-tx)}
+.gradewrap{overflow:auto;max-height:calc(100vh - 300px);border:1px solid var(--line);border-radius:var(--r)}
+table.grade{border-collapse:separate;border-spacing:0;font-size:12px;background:var(--card);font-variant-numeric:tabular-nums}
+table.grade th,table.grade td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;white-space:nowrap;text-align:right}
+table.grade th{background:var(--bg);color:var(--tx2);font-weight:600;position:sticky;top:0;z-index:1;cursor:pointer}
+table.grade td.h,table.grade th.h{position:sticky;left:0;background:var(--card);text-align:left;z-index:1}
+table.grade th.h{z-index:3;background:var(--bg)}
+table.grade tr.fil td{background:var(--bg);color:var(--tx2);text-transform:uppercase;font-size:10px;letter-spacing:.04em;position:sticky;left:0;text-align:left;font-weight:600}
+table.grade td.cel{cursor:pointer}
+table.grade td.cel.pago{background:var(--ok-bg);color:var(--ok-tx)}
+table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
+@media (min-width:900px){
+  .app{grid-template-columns:220px 1fr}
+  aside{display:flex;flex-direction:column;gap:4px;padding:18px 12px;border-right:1px solid var(--line);background:var(--card);position:sticky;top:0;height:100vh}
+  aside .brand{padding:4px 10px 16px}
+  aside .brand h1{font-size:17px;line-height:1.2}
+  aside .brand p{margin:2px 0 0;font-size:12px;color:var(--tx3)}
+  aside button.tab{display:flex;align-items:center;gap:10px;background:none;border:0;padding:10px 12px;border-radius:10px;font-size:14px;color:var(--tx2);cursor:pointer;text-align:left}
+  aside button.tab:hover{background:var(--bg)}
+  aside button.tab[aria-current=page]{background:var(--in-bg);color:var(--in-tx);font-weight:600}
+  nav.bottom{display:none}
+  .col{padding-bottom:30px}
+  header{padding:20px 28px 12px}
+  header h1{font-size:22px}
+  main{padding:0 28px 28px}
+  .kpi b{font-size:26px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><h1>Controle de Obra</h1><p>contratos & medições</p></div>
+    <button class="tab" data-tab="painel"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg> Painel</button>
+    <button class="tab" data-tab="contratos"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9 12h7M9 16h7"/></svg> Contratos</button>
+    <button class="tab" data-tab="medicoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> Medições</button>
+    <button class="tab" data-tab="relatorios"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20v-7M12 20V5M18 20v-10"/></svg> Relatórios</button>
+    <button class="tab" data-tab="mais"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Mais</button>
+  </aside>
+  <div class="col">
+    <header>
+      <div class="t"><h1 id="hTit">Painel</h1><p id="hSub"></p></div>
+      <button class="icobtn" id="btnTema" title="Recarregar" hidden></button>
+    </header>
+    <main id="main"></main>
+  </div>
+  <nav class="bottom">
+    <button data-tab="painel"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Painel</button>
+    <button data-tab="contratos"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9 12h7M9 16h7"/></svg>Contratos</button>
+    <button data-tab="medicoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Medições</button>
+    <button data-tab="relatorios"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20v-7M12 20V5M18 20v-10"/></svg>Relatórios</button>
+    <button data-tab="mais"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Mais</button>
+  </nav>
+</div>
+<input type="file" id="fileImp" accept=".json,application/json" hidden>
+<input type="file" id="fileDesc" accept=".csv,text/csv" hidden>
+<dialog id="dlg"></dialog>
+
+<script>
+// ---------- helpers ----------
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = v => (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtDate = iso => { if (!iso) return ""; const [y, m, d] = String(iso).split("-"); return `${d}/${m}/${y}`; };
+const STATUS = { ativo: ["Ativo", "in"], desativado: ["Desativado", "mut"], concluido: ["Concluído", "ok"], encerrado: ["Encerrado", "mut"] };
+
+// ---------- estado ----------
+const TABELAS = ["modules", "houses", "house_groups", "service_catalog", "teams", "contracts",
+  "contract_houses", "services", "service_house", "measurements", "entries", "reservations",
+  "debts", "debt_payments", "house_docs"];
+function PADRAO() { const s = { config: {} }; TABELAS.forEach(t => s[t] = []); return s; }
+let S = PADRAO();
+let IDX = {};
+let tela = "painel";
+let sel = null;          // contrato aberto
+let subServico = null;   // serviço aberto dentro do contrato
+let contratoView = "lista"; // "lista" | "grade"
+let busca = "", fStatus = "", fModulo = "", fAtencao = false;
+let medTeam = "", medDe = "", medAte = "", medExp = null;
+let repTipo = "resumo", repDim = "house", repMod = "", repCont = "", repServ = "", repTeam = "", repDe = "", repAte = "";
+let descTeam = "", descStatus = "aberto", descExp = null, descImport = null;
+let rastMod = "", rastSoNota = false;
+let modSel = null, modChecks = new Set(), mapMod = "";
+
+// índices e derivados (recalculados a cada salvar/importar)
+function indexar() {
+  IDX = {};
+  const map = (arr) => { const m = new Map(); for (const x of arr) m.set(x.id, x); return m; };
+  IDX.house = map(S.houses);
+  IDX.contract = map(S.contracts);
+  IDX.service = map(S.services);
+  IDX.module = map(S.modules);
+  IDX.team = map(S.teams);
+  IDX.catalog = map(S.service_catalog);
+  IDX.group = map(S.house_groups);
+  IDX.sh = map(S.service_house);
+  IDX.measurement = map(S.measurements);
+  // total pago por service_house
+  const paid = new Map();
+  for (const e of S.entries) paid.set(e.service_house_id, (paid.get(e.service_house_id) || 0) + e.value_paid);
+  IDX.paidBySH = paid;
+  // casas por contrato
+  const chByContract = new Map();
+  for (const ch of S.contract_houses) { if (!chByContract.has(ch.contract_id)) chByContract.set(ch.contract_id, []); chByContract.get(ch.contract_id).push(ch.house_id); }
+  IDX.housesByContract = chByContract;
+  // service_house por contrato (via service)
+  const shByContract = new Map();
+  const shKey = new Map();
+  for (const sh of S.service_house) {
+    shKey.set(sh.service_id + "_" + sh.house_id, sh);
+    const s = IDX.service.get(sh.service_id); if (!s) continue;
+    if (!shByContract.has(s.contract_id)) shByContract.set(s.contract_id, []); shByContract.get(s.contract_id).push(sh);
+  }
+  IDX.shByContract = shByContract;
+  IDX.shByKey = shKey;
+  // rastreabilidade: casa -> conjunto de itens marcados
+  const docs = new Map();
+  for (const d of S.house_docs) { if (!docs.has(d.house_id)) docs.set(d.house_id, new Set()); docs.get(d.house_id).add(d.item); }
+  IDX.docsByHouse = docs;
+}
+const ITENS_RAST = [
+  { key: "radier", label: "Pedido Radier", grupo: "Pedidos" },
+  { key: "parede", label: "Pedido Parede", grupo: "Pedidos" },
+  { key: "oitao", label: "Pedido Oitão", grupo: "Pedidos" },
+  { key: "ensaios_radier", label: "Ensaios Radier", grupo: "Ensaios" },
+  { key: "ensaios_parede", label: "Ensaios Parede", grupo: "Ensaios" },
+  { key: "ensaios_oitao", label: "Ensaios Oitão", grupo: "Ensaios" },
+  { key: "mapeamento", label: "Mapeamento", grupo: "Ficha" },
+  { key: "ficha", label: "Ficha montada", grupo: "Ficha" },
+];
+const docFeito = (hid, key) => !!(IDX.docsByHouse.get(hid) && IDX.docsByHouse.get(hid).has(key));
+function marcarDoc(houseIds, keys, done) {
+  for (const hid of houseIds) for (const k of keys) {
+    const existe = docFeito(hid, k);
+    if (done && !existe) S.house_docs.push({ id: nextId("house_docs"), house_id: hid, item: k, created_at: agoraSql() });
+    else if (!done && existe) S.house_docs = S.house_docs.filter(d => !(d.house_id === hid && d.item === k));
+  }
+  salvar();
+}
+function casasDoModulo(mid) {
+  const hs = S.houses.filter(h => h.module_id === mid);
+  return hs.sort((a, b) => {
+    const ua = a.group_id ? 0 : 1, ub = b.group_id ? 0 : 1; if (ua !== ub) return ua - ub;
+    const ga = grupoOrdem(a.group_id), gb = grupoOrdem(b.group_id);
+    if (ga[0] !== gb[0]) return ga[0] - gb[0]; if (ga[1] !== gb[1]) return ga[1] - gb[1];
+    const na = natkey(a.name), nb = natkey(b.name); return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+}
+const natkey = s => String(s ?? "").replace(/\d+/g, n => n.padStart(12, "0"));
+function nextId(tabela) { let m = 0; for (const x of S[tabela]) if (x.id > m) m = x.id; return m + 1; }
+function agoraSql() { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function grupoOrdem(gid) { const g = IDX.group.get(gid); return g ? [g.order_index || 0, g.id] : [0, 0]; }
+function casasDoContrato(cid) {
+  const hs = (IDX.housesByContract.get(cid) || []).map(id => IDX.house.get(id)).filter(Boolean);
+  return hs.sort((a, b) => {
+    const ua = a.group_id ? 0 : 1, ub = b.group_id ? 0 : 1; if (ua !== ub) return ua - ub;
+    const ga = grupoOrdem(a.group_id), gb = grupoOrdem(b.group_id);
+    if (ga[0] !== gb[0]) return ga[0] - gb[0]; if (ga[1] !== gb[1]) return ga[1] - gb[1];
+    const na = natkey(a.name), nb = natkey(b.name); return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+}
+const shDe = (serviceId, houseId) => IDX.shByKey.get(serviceId + "_" + houseId);
+const entriesDe = shId => S.entries.filter(e => e.service_house_id === shId).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+const nomeGrupo = h => (h.group_id ? (IDX.group.get(h.group_id) || {}).name : null) || "Sem fileira";
+
+// mescla numa medição existente do empreiteiro+data, ou cria uma nova
+function resolveMedicao(teamId, date, notes) {
+  let m = S.measurements.find(x => x.team_id === teamId && x.date === date);
+  if (!m) { m = { id: nextId("measurements"), team_id: teamId, date, notes: notes || null }; S.measurements.push(m); }
+  return m.id;
+}
+// impede que o total pago passe do valor contratado (negativos/estorno passam)
+function checarSaldo(sh, valor, excluirId) {
+  const uv = unitValue(sh);
+  let atual = 0; for (const e of S.entries) if (e.service_house_id === sh.id && e.id !== excluirId) atual += e.value_paid;
+  if (atual + valor > uv + 0.01) throw new Error("Valor excede o saldo (disponível: " + money(uv - atual) + ")");
+}
+function recomputarStatus(cid) {
+  const c = IDX.contract.get(cid); if (!c || c.status === "desativado" || c.status === "encerrado") return;
+  const t = totaisDoContrato(cid);
+  const novo = t.contratado > 0 && t.saldo <= 0.01 ? "concluido" : "ativo";
+  if (novo !== c.status) c.status = novo;
+}
+// mutações: mexem no S, reindexam (pra o pago ficar fresco), recalculam status e persistem
+function lancar(shId, mId, valor) {
+  const sh = IDX.sh.get(shId); checarSaldo(sh, valor, null);
+  const cid = IDX.service.get(sh.service_id).contract_id;
+  S.entries.push({ id: nextId("entries"), service_house_id: shId, measurement_id: mId, value_paid: valor, created_at: agoraSql() });
+  sh.completed = 1;
+  indexar(); recomputarStatus(cid); persistir();
+}
+function lancarVarias(mId, itens) {
+  for (const it of itens) checarSaldo(IDX.sh.get(it.shId), it.valor, null);
+  const cid = IDX.service.get(IDX.sh.get(itens[0].shId).service_id).contract_id;
+  for (const it of itens) {
+    S.entries.push({ id: nextId("entries"), service_house_id: it.shId, measurement_id: mId, value_paid: it.valor, created_at: agoraSql() });
+    IDX.sh.get(it.shId).completed = 1;
+  }
+  indexar(); recomputarStatus(cid); persistir();
+}
+function excluirLancamento(entryId) {
+  const e = S.entries.find(x => x.id === entryId); if (!e) return;
+  const cid = IDX.service.get(IDX.sh.get(e.service_house_id).service_id).contract_id;
+  S.entries = S.entries.filter(x => x.id !== entryId);
+  indexar(); recomputarStatus(cid); persistir();
+}
+function toggleRealizado(shId) { const sh = IDX.sh.get(shId); sh.completed = sh.completed ? 0 : 1; salvar(); }
+
+// ---- relatórios ----
+// uma linha por service_house, enriquecida, com filtros opcionais {contract_id, module_id}
+function linhasBase(f = {}) {
+  const out = [];
+  for (const sh of S.service_house) {
+    const s = IDX.service.get(sh.service_id); if (!s) continue;
+    const c = IDX.contract.get(s.contract_id); if (!c) continue;
+    if (f.contract_id && c.id !== f.contract_id) continue;
+    if (f.module_id && c.module_id !== f.module_id) continue;
+    const h = IDX.house.get(sh.house_id); if (!h) continue;
+    const uv = unitValue(sh), pago = IDX.paidBySH.get(sh.id) || 0;
+    out.push({ sh, service: s, contract: c, house: h, catalog: IDX.catalog.get(s.catalog_service_id) || {}, unit_value: uv, total_paid: pago, balance: uv - pago, completed: !!sh.completed });
+  }
+  return out;
+}
+// agrega as linhas por uma chave (casa/contrato/serviço)
+function agrupar(linhas, chaveFn) {
+  const g = new Map();
+  for (const r of linhas) {
+    const { key, label } = chaveFn(r);
+    if (!g.has(key)) g.set(key, { label, unit_value: 0, total_paid: 0, balance: 0, count: 0, feitos: 0 });
+    const x = g.get(key); x.unit_value += r.unit_value; x.total_paid += r.total_paid; x.balance += r.balance; x.count++; if (r.completed) x.feitos++;
+  }
+  return [...g.values()].map(x => ({ ...x, pctPago: x.unit_value > 0 ? x.total_paid / x.unit_value * 100 : 0, pctFeito: x.count > 0 ? x.feitos / x.count * 100 : 0 }));
+}
+function entradasDaMedicao(mId) {
+  return S.entries.filter(e => e.measurement_id === mId).map(e => {
+    const sh = IDX.sh.get(e.service_house_id) || {}, s = IDX.service.get(sh.service_id) || {}, c = IDX.contract.get(s.contract_id) || {}, h = IDX.house.get(sh.house_id) || {};
+    return { id: e.id, valor: e.value_paid, contrato: (c.number || "") + " " + (c.name || ""), servico: (IDX.catalog.get(s.catalog_service_id) || {}).name || "", casa: h.name || "" };
+  }).sort((a, b) => (a.contrato + a.casa).localeCompare(b.contrato + b.casa));
+}
+function evolucao(f = {}) {
+  const porData = new Map();
+  for (const e of S.entries) {
+    const sh = IDX.sh.get(e.service_house_id); if (!sh) continue;
+    const s = IDX.service.get(sh.service_id); if (!s) continue;
+    const c = IDX.contract.get(s.contract_id); if (!c) continue;
+    const m = IDX.measurement.get(e.measurement_id); if (!m) continue;
+    if (f.contract_id && c.id !== f.contract_id) continue;
+    if (f.module_id && c.module_id !== f.module_id) continue;
+    if (f.team_id && m.team_id !== f.team_id) continue;
+    if (f.date_from && m.date < f.date_from) continue;
+    if (f.date_to && m.date > f.date_to) continue;
+    if (!porData.has(m.date)) porData.set(m.date, { date: m.date, valor: 0, casas: new Set() });
+    const g = porData.get(m.date); g.valor += e.value_paid; g.casas.add(sh.house_id);
+  }
+  const arr = [...porData.values()].map(g => ({ date: g.date, valor: g.valor, casas: g.casas.size })).sort((a, b) => a.date < b.date ? -1 : 1);
+  let acc = 0; for (const g of arr) { acc += g.valor; g.acum = acc; }
+  return arr;
+}
+function unitValue(sh) {
+  const s = IDX.service.get(sh.service_id), h = IDX.house.get(sh.house_id);
+  if (!s || !h) return 0;
+  return h.type === "tipo_1" ? s.unit_value_type1 : s.unit_value_type2;
+}
+function cellsDoContrato(cid) {
+  return (IDX.shByContract.get(cid) || []).map(sh => {
+    const uv = unitValue(sh), pago = IDX.paidBySH.get(sh.id) || 0;
+    return { sh, unit_value: uv, total_paid: pago, balance: uv - pago, completed: !!sh.completed, service_id: sh.service_id, house_id: sh.house_id };
+  });
+}
+function totaisDoContrato(cid) {
+  const cells = cellsDoContrato(cid);
+  const contratado = cells.reduce((a, c) => a + c.unit_value, 0);
+  const pago = cells.reduce((a, c) => a + c.total_paid, 0);
+  return { contratado, pago, saldo: contratado - pago, cells };
+}
+// medições vinculadas a um contrato, numeradas por ordem de vínculo (1º lançamento)
+function medicoesDoContrato(cid) {
+  const shIds = new Set((IDX.shByContract.get(cid) || []).map(x => x.id));
+  const firstLink = new Map();
+  for (const e of S.entries) {
+    if (!shIds.has(e.service_house_id)) continue;
+    const key = e.created_at + "#" + String(e.id).padStart(12, "0");
+    if (!firstLink.has(e.measurement_id) || key < firstLink.get(e.measurement_id)) firstLink.set(e.measurement_id, key);
+  }
+  return [...firstLink.entries()].sort((a, b) => a[1] < b[1] ? -1 : 1).map(([mid], i) => {
+    const m = S.measurements.find(x => x.id === mid) || {};
+    const t = IDX.team.get(m.team_id) || {};
+    return { id: mid, seq: i + 1, team_name: t.name, date: m.date };
+  });
+}
+
+// ---------- persistência (IndexedDB) ----------
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("obra", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(k) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction("kv").objectStore("kv").get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); }
+async function idbSet(k, v) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction("kv", "readwrite").objectStore("kv").put(v, k); t.onsuccess = () => res(); t.onerror = () => rej(t.error); }); }
+let salvando = null;
+function persistir() { S.config.salvoEm = new Date().toISOString(); salvando = idbSet("estado", S).catch(e => console.error("salvar", e)); if (typeof agendarSync === "function") agendarSync(); return salvando; }
+function salvar() { indexar(); return persistir(); }
+
+function baixar(nome, texto, tipo) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([texto], { type: tipo || "application/octet-stream" }));
+  a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function carregarDados(d) {
+  const novo = PADRAO();
+  for (const t of TABELAS) if (Array.isArray(d[t])) novo[t] = d[t];
+  novo.config = Object.assign({}, S.config, d.config || {});
+  S = novo; salvar();
+}
+
+// ---------- navegação / render ----------
+function ir(t) { tela = t; sel = null; render(); }
+const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa"];
+function render() {
+  const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
+  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-current", b.dataset.tab === grupo && !sel ? "page" : "false"));
+  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa };
+  if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
+  (V[tela] || vPainel)();
+}
+function topo(titulo, sub) { document.getElementById("hTit").textContent = titulo; document.getElementById("hSub").textContent = sub || ""; }
+
+// ---------- Painel ----------
+function vPainel() {
+  const ativos = S.contracts.filter(c => c.status === "ativo").length;
+  let contratado = 0, pago = 0;
+  const porModulo = new Map();
+  for (const c of S.contracts) {
+    const t = totaisDoContrato(c.id);
+    contratado += t.contratado; pago += t.pago;
+    if (!porModulo.has(c.module_id)) porModulo.set(c.module_id, { nome: (IDX.module.get(c.module_id) || {}).name || "—", contratos: [], contratado: 0, pago: 0 });
+    const g = porModulo.get(c.module_id);
+    g.contratos.push({ c, t }); g.contratado += t.contratado; g.pago += t.pago;
+  }
+  topo("Painel", S.contracts.length + " contratos · " + S.houses.length + " casas");
+  const kpis = `<div class="kpis">
+    <div class="kpi"><p>Contratos ativos</p><b>${ativos}</b></div>
+    <div class="kpi"><p>Contratado</p><b>${money(contratado)}</b></div>
+    <div class="kpi"><p>Pago</p><b>${money(pago)}</b></div>
+    <div class="kpi"><p>Saldo</p><b>${money(contratado - pago)}</b></div>
+  </div>`;
+  const modulos = [...porModulo.values()].map(g => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <h2 style="font-size:16px">${esc(g.nome)}</h2>
+        <span class="mut" style="font-size:12px">Saldo ${money(g.contratado - g.pago)}</span>
+      </div>
+      <div class="rows" style="margin-top:10px">
+        ${g.contratos.sort((a, b) => a.c.number.localeCompare(b.c.number)).map(({ c, t }) => `
+          <button class="row" data-act="abrir" data-id="${c.id}">
+            <div class="g"><b>${esc(c.number)} — ${esc(c.name)}</b><small>Pago ${money(t.pago)} · ${STATUS[c.status] ? STATUS[c.status][0] : c.status}</small></div>
+            <span class="v">${money(t.saldo)}</span>
+          </button>`).join("")}
+      </div>
+    </div>`).join("");
+  document.getElementById("main").innerHTML = kpis + (modulos || `<p class="mut">Nenhum contrato ainda. Importe seus dados em Ajustes.</p>`);
+}
+
+// ---------- Contratos ----------
+function vContratos() {
+  const q = busca.trim().toLowerCase();
+  const atencaoN = S.contracts.filter(c => c.attention).length;
+  const lista = S.contracts.filter(c => {
+    if (fModulo && String(c.module_id) !== fModulo) return false;
+    if (fStatus && c.status !== fStatus) return false;
+    if (fAtencao && !c.attention) return false;
+    if (q && !`${c.number} ${c.name}`.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, b) => a.number.localeCompare(b.number));
+  topo("Contratos", lista.length + " de " + S.contracts.length);
+  const filtros = `
+    <div class="field"><input id="fBusca" placeholder="Buscar por número ou nome" value="${esc(busca)}"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <select id="fMod" style="width:auto;flex:1;min-width:140px"><option value="">Todos os módulos</option>${S.modules.map(m => `<option value="${m.id}" ${fModulo == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
+      <select id="fSt" style="width:auto"><option value="">Todas</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${fStatus === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
+    </div>
+    <div style="margin-bottom:10px"><button class="chip" data-act="togAtencao" aria-pressed="${fAtencao}">⚠ Só atenção${atencaoN ? " (" + atencaoN + ")" : ""}</button></div>`;
+  const rows = lista.length ? `<div class="rows">${lista.map(c => {
+    const t = totaisDoContrato(c.id); const st = STATUS[c.status] || [c.status, "mut"];
+    return `<button class="row" data-act="abrir" data-id="${c.id}">
+      <div class="g"><b>${c.attention ? "⚠ " : ""}${esc(c.number)} — ${esc(c.name)}</b><small>${esc((IDX.module.get(c.module_id) || {}).name || "")}</small></div>
+      <span class="tag ${st[1]}">${st[0]}</span>
+      <span class="v">${money(t.saldo)}</span>
+    </button>`;
+  }).join("")}</div>` : `<p class="mut">Nenhum contrato encontrado.</p>`;
+  document.getElementById("main").innerHTML = filtros + rows;
+}
+
+// ---------- Contrato (resumo — só leitura nesta fase) ----------
+function vContrato() {
+  const c = IDX.contract.get(sel);
+  if (!c) { sel = null; return vContratos(); }
+  const t = totaisDoContrato(c.id);
+  const meds = medicoesDoContrato(c.id);
+  const ultima = meds[meds.length - 1];
+  const st = STATUS[c.status] || [c.status, "mut"];
+  // resumo por serviço
+  const porServico = new Map();
+  for (const cell of t.cells) {
+    const s = IDX.service.get(cell.service_id); if (!s) continue;
+    const nome = (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
+    if (!porServico.has(s.id)) porServico.set(s.id, { nome, saldo: 0, aPagar: 0, aReali: 0, total: 0 });
+    const g = porServico.get(s.id);
+    g.saldo += cell.balance; g.total++; if (cell.balance > 0.01) g.aPagar++; if (!cell.completed) g.aReali++;
+  }
+  topo(c.number + " — " + c.name, (IDX.module.get(c.module_id) || {}).name || "");
+  const servicos = [...porServico.entries()].map(([sid, s]) => `
+    <button class="row" data-act="verServico" data-id="${sid}">
+      <div class="g"><b>${s.aPagar === 0 && s.aReali === 0 ? "✓ " : ""}${esc(s.nome)}</b><small>A pagar ${s.aPagar}/${s.total} · A realizar ${s.aReali}/${s.total}</small></div>
+      <span class="v">${money(s.saldo)}</span>
+    </button>`).join("");
+  document.getElementById("main").innerHTML = `
+    <button class="btn sec sm voltar" data-act="voltar">← Contratos</button>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="tag ${st[1]}">${st[0]}</span>
+        <span class="mut" style="font-size:12px">${(IDX.housesByContract.get(c.id) || []).length} casas</span>
+      </div>
+      <p class="mut" style="font-size:13px;margin:10px 0 0">Última medição lançada: ${ultima ? `<b style="color:var(--in-tx)">Nº${ultima.seq} · ${esc(ultima.team_name)} — ${fmtDate(ultima.date)}</b>` : "nenhuma ainda"}</p>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><p>Contratado</p><b>${money(t.contratado)}</b></div>
+      <div class="kpi"><p>Pago</p><b>${money(t.pago)}</b></div>
+      <div class="kpi"><p>Saldo</p><b>${money(t.saldo)}</b></div>
+    </div>
+    <div style="margin:4px 0 10px">
+      <button class="chip" data-act="viewLista" aria-pressed="${contratoView === "lista"}">Lista</button>
+      <button class="chip" data-act="viewGrade" aria-pressed="${contratoView === "grade"}">Grade</button>
+    </div>
+    ${contratoView === "grade" ? gradeHTML(c.id) : `<p class="sec-t" style="margin-top:4px">Serviços — toque para lançar</p><div class="rows">${servicos || '<div class="row"><span class="mut">Nenhum serviço.</span></div>'}</div>`}`;
+}
+
+// grade: matriz casas (linhas) × serviços (colunas); célula = saldo, clique lança
+function gradeHTML(cid) {
+  const services = S.services.filter(s => s.contract_id === cid).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  if (!services.length) return '<p class="mut">Sem serviços neste contrato.</p>';
+  const nome = s => (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
+  let head = `<tr><th class="h">Casa</th>${services.map(s => `<th data-act="bulk" data-id="${s.id}" title="Lançar em várias casas — ${esc(nome(s))}">${esc(nome(s))}</th>`).join("")}</tr>`;
+  let body = "", grupo = null;
+  for (const h of casasDoContrato(cid)) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; body += `<tr class="fil"><td colspan="${services.length + 1}">${esc(g)}</td></tr>`; }
+    let tds = "";
+    for (const s of services) {
+      const sh = shDe(s.id, h.id);
+      if (!sh) { tds += `<td class="mut" style="text-align:center">—</td>`; continue; }
+      const saldo = unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0);
+      tds += `<td class="cel ${saldo <= 0.01 ? "pago" : ""}" data-act="lancarCel" data-sh="${sh.id}" title="${esc(nome(s))} — ${esc(h.name)}">${sh.completed ? "✓ " : ""}${money(saldo)}</td>`;
+    }
+    body += `<tr><td class="h">${esc(h.name)} <span class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</span></td>${tds}</tr>`;
+  }
+  return `<div class="gradewrap"><table class="grade"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+// ---------- Serviço (casas + lançamento) ----------
+function vServico() {
+  const c = IDX.contract.get(sel), s = IDX.service.get(subServico);
+  if (!c || !s) { subServico = null; return vContrato(); }
+  const nome = (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
+  topo(nome, c.number + " — " + c.name);
+  let linhas = "", grupo = null, saldoTotal = 0;
+  for (const h of casasDoContrato(sel)) {
+    const sh = shDe(s.id, h.id); if (!sh) continue;
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
+    const uv = unitValue(sh), pago = IDX.paidBySH.get(sh.id) || 0, saldo = uv - pago;
+    saldoTotal += saldo;
+    const pct = uv > 0 ? Math.max(0, Math.min(100, pago / uv * 100)) : 0;
+    linhas += `<div class="row" style="cursor:default">
+      <button class="g" data-act="lancarCel" data-sh="${sh.id}" style="background:none;border:0;text-align:left;cursor:pointer;padding:0;min-width:0">
+        <b>${esc(h.name)} <span class="mut" style="font-weight:400">(${h.type === "tipo_1" ? "T1" : "T2"})</span></b>
+        <small>${money(pago)} / ${money(uv)} · saldo ${money(saldo)}</small>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+      </button>
+      <span class="reali ${sh.completed ? "on" : ""}" data-act="toggleReal" data-sh="${sh.id}">${sh.completed ? "✓" : "○"} Realizado</span>
+    </div>`;
+  }
+  document.getElementById("main").innerHTML = `
+    <button class="btn sec sm voltar" data-act="voltarServico">← ${esc(c.number)}</button>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div><span class="mut" style="font-size:12px">Valor por casa</span><br>T1 ${money(s.unit_value_type1)} · T2 ${money(s.unit_value_type2)}</div>
+        <div style="text-align:right"><span class="mut" style="font-size:12px">Saldo do serviço</span><br><b>${money(saldoTotal)}</b></div>
+      </div>
+      <button class="btn sm" style="margin-top:12px" data-act="bulk" data-id="${s.id}">Lançar em várias casas</button>
+    </div>
+    <div class="rows">${linhas || '<div class="row"><span class="mut">Sem casas.</span></div>'}</div>`;
+}
+
+// ---------- modais de lançamento ----------
+let dlgSh = null;
+function abrirLancamento(shId) {
+  dlgSh = shId;
+  const sh = IDX.sh.get(shId), s = IDX.service.get(sh.service_id), h = IDX.house.get(sh.house_id);
+  const nome = (IDX.catalog.get(s.catalog_service_id) || {}).name || "";
+  const uv = unitValue(sh), pago = IDX.paidBySH.get(sh.id) || 0, saldo = uv - pago;
+  const seqMap = {}; medicoesDoContrato(s.contract_id).forEach(m => seqMap[m.id] = m.seq);
+  const hist = entriesDe(shId).map(e => {
+    const m = S.measurements.find(x => x.id === e.measurement_id) || {}, tm = IDX.team.get(m.team_id) || {}, seq = seqMap[e.measurement_id];
+    return `<tr><td>${seq ? "<b>Nº" + seq + "</b> · " : ""}${esc(tm.name || "")} — ${fmtDate(m.date)}</td><td>${money(e.value_paid)}</td><td><button class="icobtn" data-act="rmLanc" data-id="${e.id}" title="Excluir">✕</button></td></tr>`;
+  }).join("");
+  const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Lançar pagamento</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 4px">${esc(nome)} — ${esc(h.name)}</p>
+    <p class="mut" style="font-size:13px;margin:0 0 12px">Saldo atual: ${money(saldo)}</p>
+    ${hist ? `<p class="sec-t" style="margin:0 0 4px">Lançamentos anteriores</p><table class="mats">${hist}</table>` : ""}
+    <div class="field" style="margin-top:12px"><label>Empreiteiro</label><select id="lTeam">${teams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Data</label><input type="date" id="lData" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <div class="field" style="flex:1"><label>Valor pago</label><input type="number" step="0.01" id="lValor" value="${saldo}"></div>
+    </div>
+    <p class="err" id="lErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarLanc" data-sh="${shId}">Salvar</button></div>
+  </div>`;
+  dlg.showModal();
+}
+function abrirBulk(serviceId) {
+  const s = IDX.service.get(serviceId), nome = (IDX.catalog.get(s.catalog_service_id) || {}).name || "";
+  const casas = casasDoContrato(sel).filter(h => { const sh = shDe(serviceId, h.id); return sh && (unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0)) > 0.01; });
+  const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const sh = shDe(serviceId, h.id), saldo = unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0), g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<tr><td colspan="3" class="filsub"><label style="margin:0;display:flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" data-filgrp="${esc(g)}"> ${esc(g)}</label></td></tr>`; }
+    linhas += `<tr data-grp="${esc(g)}"><td><input type="checkbox" class="bchk" data-sh="${sh.id}"></td><td>${esc(h.name)}<br><small class="mut">saldo ${money(saldo)}</small></td><td><input type="number" step="0.01" class="bval" data-sh="${sh.id}" value="${saldo}" style="width:100px"></td></tr>`;
+  }
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Lançar em várias casas</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 12px">${esc(nome)}</p>
+    <div class="field"><label>Empreiteiro</label><select id="bTeam">${teams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1"><label>Data</label><input type="date" id="bData" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <div class="field" style="flex:1"><label>Valor padrão</label><input type="number" step="0.01" id="bPadrao" placeholder="ex: 250"></div>
+      <button class="btn sec" style="width:auto;margin-bottom:12px" data-act="aplicarPadrao">Aplicar</button>
+    </div>
+    <div id="bResumo" class="mut" style="font-size:13px;margin-bottom:6px"></div>
+    ${casas.length ? `<table class="mats"><tr><td><input type="checkbox" id="bAll"></td><td>Casa</td><td>Valor</td></tr>${linhas}</table>` : '<p class="mut">Nenhuma casa com saldo em aberto.</p>'}
+    <p class="err" id="bErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarBulk" data-id="${serviceId}">Salvar</button></div>
+  </div>`;
+  dlg.showModal(); atualizarResumoBulk();
+}
+function atualizarResumoBulk() {
+  const el = document.getElementById("bResumo"); if (!el) return;
+  const marcadas = [...document.querySelectorAll(".bchk:checked")];
+  let tot = 0; marcadas.forEach(c => { const v = document.querySelector(`.bval[data-sh="${c.dataset.sh}"]`); tot += Number(v && v.value) || 0; });
+  el.textContent = marcadas.length + " casa(s) · Total " + money(tot);
+}
+
+// ---------- Medições ----------
+function vMedicoes() {
+  const tot = new Map(), cnt = new Map();
+  for (const e of S.entries) { tot.set(e.measurement_id, (tot.get(e.measurement_id) || 0) + e.value_paid); cnt.set(e.measurement_id, (cnt.get(e.measurement_id) || 0) + 1); }
+  let lista = S.measurements.slice().sort((a, b) => a.date !== b.date ? (a.date < b.date ? 1 : -1) : b.id - a.id);
+  if (medTeam) lista = lista.filter(m => String(m.team_id) === medTeam);
+  if (medDe) lista = lista.filter(m => m.date >= medDe);
+  if (medAte) lista = lista.filter(m => m.date <= medAte);
+  topo("Medições", lista.length + " de " + S.measurements.length);
+  const teams = S.teams.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const filtros = `<button class="btn sm" data-act="novaMedicao" style="margin-bottom:10px">+ Nova medição</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <select id="mfTeam" style="flex:1;min-width:150px"><option value="">Todos os empreiteiros</option>${teams.map(t => `<option value="${t.id}" ${medTeam == t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <input type="date" id="mfDe" value="${medDe}" style="width:auto" title="De"><input type="date" id="mfAte" value="${medAte}" style="width:auto" title="Até">
+    </div>`;
+  const rows = lista.map(m => {
+    const t = IDX.team.get(m.team_id) || {}, aberto = medExp === m.id;
+    let det = "";
+    if (aberto) {
+      const ents = entradasDaMedicao(m.id);
+      det = `<div style="padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line)">${ents.length
+        ? `<table class="mats">${ents.map(e => `<tr><td>${esc(e.contrato)}<br><small class="mut">${esc(e.servico)} · ${esc(e.casa)}</small></td><td>${money(e.valor)}</td><td><button class="icobtn" data-act="rmLancM" data-id="${e.id}" title="Excluir">✕</button></td></tr>`).join("")}</table>`
+        : `<p class="mut" style="margin:0 0 8px">Sem lançamentos.</p><button class="btn er sm" data-act="rmMedicao" data-id="${m.id}">Excluir medição</button>`}</div>`;
+    }
+    return `<button class="row" data-act="medExp" data-id="${m.id}" aria-current="${aberto}"><div class="g"><b>${esc(t.name || "—")}</b><small>${fmtDate(m.date)} · ${cnt.get(m.id) || 0} lançamento(s)</small></div><span class="v">${money(tot.get(m.id) || 0)}</span></button>${det}`;
+  }).join("");
+  document.getElementById("main").innerHTML = filtros + `<div class="rows">${rows || '<div class="row"><span class="mut">Nenhuma medição.</span></div>'}</div>`;
+}
+function formNovaMedicao() {
+  const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Nova medição</h2>
+    <div class="field" style="margin-top:8px"><label>Empreiteiro</label><select id="nmTeam">${teams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Data</label><input type="date" id="nmData" value="${new Date().toISOString().slice(0, 10)}"></div>
+    <div class="field"><label>Anotações (opcional)</label><input id="nmNota"></div>
+    <p class="err" id="nmErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarMedicao">Criar</button></div></div>`;
+  dlg.showModal();
+}
+
+// ---------- Relatórios ----------
+function vRelatorios() {
+  topo("Relatórios", "");
+  const tipos = [["resumo", "Resumo"], ["evolucao", "Evolução"], ["pendencias", "Pendências"], ["detalhe", "Por serviço"], ["extrato", "Por empreiteiro"]];
+  const sel = `<div class="field"><select id="rTipo">${tipos.map(([k, l]) => `<option value="${k}" ${repTipo === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>`;
+  const corpo = ({ resumo: relResumo, evolucao: relEvolucao, pendencias: relPendencias, detalhe: relDetalhe, extrato: relExtrato }[repTipo] || relResumo)();
+  document.getElementById("main").innerHTML = sel + corpo;
+}
+const selMod = () => `<select id="rMod"><option value="">Todos os módulos</option>${S.modules.map(m => `<option value="${m.id}" ${repMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>`;
+const selTeam = () => `<select id="rTeam"><option value="">Todos os empreiteiros</option>${S.teams.slice().sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${repTeam == t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>`;
+function relResumo() {
+  const dims = [["house", "Casa"], ["contract", "Contrato"], ["service", "Serviço"], ["measurement", "Medição"], ["team", "Empreiteiro"]];
+  const chips = `<div style="margin-bottom:8px">${dims.map(([k, l]) => `<button class="chip" data-act="repDim" data-id="${k}" aria-pressed="${repDim === k}">${l}</button>`).join("")}</div>`;
+  const filtro = `<div class="field">${selMod()}</div>`;
+  if (repDim === "measurement" || repDim === "team") {
+    const tot = new Map(), cnt = new Map(), lab = new Map();
+    for (const e of S.entries) {
+      const m = IDX.measurement.get(e.measurement_id); if (!m) continue;
+      if (repMod) { const sh = IDX.sh.get(e.service_house_id), s = sh && IDX.service.get(sh.service_id), c = s && IDX.contract.get(s.contract_id); if (!c || c.module_id !== Number(repMod)) continue; }
+      const key = repDim === "measurement" ? m.id : m.team_id;
+      tot.set(key, (tot.get(key) || 0) + e.value_paid); cnt.set(key, (cnt.get(key) || 0) + 1);
+      if (!lab.has(key)) lab.set(key, repDim === "measurement" ? ((IDX.team.get(m.team_id) || {}).name + " - " + fmtDate(m.date)) : (IDX.team.get(m.team_id) || {}).name);
+    }
+    const linhas = [...tot.keys()].map(k => ({ label: lab.get(k), pago: tot.get(k), n: cnt.get(k) })).sort((a, b) => b.pago - a.pago);
+    const body = linhas.map(r => `<tr><td>${esc(r.label || "—")}</td><td>${money(r.pago)}</td><td>${r.n}</td></tr>`).join("");
+    return chips + filtro + `<table class="rep"><tr><th>${dims.find(d => d[0] === repDim)[1]}</th><th>Pago</th><th>Nº</th></tr>${body || '<tr><td class="mut">Sem dados.</td></tr>'}</table>`;
+  }
+  const keyFn = { house: r => ({ key: r.house.id, label: r.house.name }), contract: r => ({ key: r.contract.id, label: r.contract.number + " - " + r.contract.name }), service: r => ({ key: r.service.catalog_service_id, label: r.catalog.name || "—" }) }[repDim];
+  const ag = agrupar(linhasBase({ module_id: repMod ? Number(repMod) : null }), keyFn).sort((a, b) => b.balance - a.balance);
+  const body = ag.map(g => `<tr><td>${esc(g.label)}</td><td>${money(g.total_paid)}</td><td>${money(g.balance)}</td><td>${g.pctPago.toFixed(0)}%</td><td>${g.pctFeito.toFixed(0)}%</td></tr>`).join("");
+  return chips + filtro + `<table class="rep"><tr><th>${dims.find(d => d[0] === repDim)[1]}</th><th>Pago</th><th>Saldo</th><th>%Pg</th><th>%Rz</th></tr>${body || '<tr><td class="mut">Sem dados.</td></tr>'}</table>`;
+}
+function chartEvolucao(dados) {
+  const W = 320, H = 88, pad = 4, max = Math.max(...dados.map(d => d.acum), 1), n = dados.length;
+  const x = i => n <= 1 ? W / 2 : pad + i * (W - 2 * pad) / (n - 1), y = v => H - pad - v / max * (H - 2 * pad);
+  const pts = dados.map((d, i) => `${x(i).toFixed(1)},${y(d.acum).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:100px;margin:6px 0;display:block">
+    <polygon points="${pad},${H - pad} ${pts} ${x(n - 1).toFixed(1)},${H - pad}" fill="var(--in-bg)"/>
+    <polyline points="${pts}" fill="none" stroke="var(--ac)" stroke-width="2"/></svg>`;
+}
+function relEvolucao() {
+  const dados = evolucao({ module_id: repMod ? Number(repMod) : null, team_id: repTeam ? Number(repTeam) : null, date_from: repDe || null, date_to: repAte || null });
+  const filtros = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${selMod()}${selTeam()}<input type="date" id="rDe" value="${repDe}" style="width:auto"><input type="date" id="rAte" value="${repAte}" style="width:auto"></div>`;
+  if (!dados.length) return filtros + '<p class="mut" style="margin-top:12px">Sem lançamentos para o filtro.</p>';
+  const media = (dados.reduce((a, d) => a + d.casas, 0) / dados.length).toFixed(1);
+  const body = dados.map(d => `<tr><td>${fmtDate(d.date)}</td><td>${d.casas}</td><td>${money(d.valor)}</td><td>${money(d.acum)}</td></tr>`).join("");
+  return filtros + chartEvolucao(dados) + `<p class="mut" style="font-size:13px">Média: <b>${media}</b> casas/medição</p><table class="rep"><tr><th>Data</th><th>Casas</th><th>Pago</th><th>Acumulado</th></tr>${body}</table>`;
+}
+function relPendencias() {
+  const base = linhasBase({ module_id: repMod ? Number(repMod) : null }).filter(r => r.balance > 0.01).sort((a, b) => b.balance - a.balance);
+  const body = base.slice(0, 800).map(r => `<tr><td>${esc(r.contract.number)} · ${esc(r.house.name)}<br><small class="mut">${esc(r.catalog.name || "")}</small></td><td>${money(r.balance)}</td><td>${r.completed ? "✓" : ""}</td></tr>`).join("");
+  return `<div class="field" style="margin-top:8px">${selMod()}</div><p class="mut" style="font-size:13px">${base.length} pendência(s)</p><table class="rep"><tr><th>Contrato · Casa</th><th>Saldo</th><th>Rz</th></tr>${body || '<tr><td class="mut">Nada pendente.</td></tr>'}</table>`;
+}
+function relDetalhe() {
+  const cats = S.service_catalog.filter(sc => S.services.some(s => s.catalog_service_id === sc.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const sel = `<div class="field" style="margin-top:8px"><label>Serviço</label><select id="rServ"><option value="">Selecione...</option>${cats.map(c => `<option value="${c.id}" ${repServ == c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div><div style="display:flex;gap:8px;flex-wrap:wrap">${selMod()}${selTeam()}</div>`;
+  if (!repServ) return sel + '<p class="mut" style="margin-top:12px">Escolha um serviço.</p>';
+  const ultTeam = {};
+  for (const e of S.entries) { const p = ultTeam[e.service_house_id]; if (!p || (e.created_at || "") > p.at) ultTeam[e.service_house_id] = { at: e.created_at || "", team: (IDX.team.get((IDX.measurement.get(e.measurement_id) || {}).team_id) || {}).name }; }
+  let rows = linhasBase({ module_id: repMod ? Number(repMod) : null }).filter(r => r.service.catalog_service_id === Number(repServ));
+  if (repTeam) rows = rows.filter(r => S.entries.some(e => e.service_house_id === r.sh.id && (IDX.measurement.get(e.measurement_id) || {}).team_id === Number(repTeam)));
+  rows.sort((a, b) => (a.contract.number + a.house.name).localeCompare(b.contract.number + b.house.name));
+  const body = rows.map(r => `<tr><td>${esc(r.house.name)}<br><small class="mut">${esc(r.contract.number)}</small></td><td>${esc((ultTeam[r.sh.id] || {}).team || "-")}</td><td>${money(r.total_paid)}</td><td>${money(r.balance)}</td><td>${r.completed ? "✓" : ""}</td></tr>`).join("");
+  return sel + `<table class="rep" style="margin-top:10px"><tr><th>Casa</th><th>Empreiteiro</th><th>Pago</th><th>Saldo</th><th>Rz</th></tr>${body || '<tr><td class="mut">Sem casas.</td></tr>'}</table>`;
+}
+function relExtrato() {
+  const teams = S.teams.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const sel = `<div class="field" style="margin-top:8px"><label>Empreiteiro</label><select id="rTeam"><option value="">Selecione...</option>${teams.map(t => `<option value="${t.id}" ${repTeam == t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div><div style="display:flex;gap:8px"><input type="date" id="rDe" value="${repDe}" style="width:auto"><input type="date" id="rAte" value="${repAte}" style="width:auto"></div>`;
+  if (!repTeam) return sel + '<p class="mut" style="margin-top:12px">Escolha um empreiteiro.</p>';
+  const rows = []; let total = 0;
+  for (const e of S.entries) {
+    const m = IDX.measurement.get(e.measurement_id); if (!m || m.team_id !== Number(repTeam)) continue;
+    if (repDe && m.date < repDe) continue; if (repAte && m.date > repAte) continue;
+    const sh = IDX.sh.get(e.service_house_id), s = sh && IDX.service.get(sh.service_id), c = s && IDX.contract.get(s.contract_id), h = sh && IDX.house.get(sh.house_id);
+    rows.push({ date: m.date, contrato: c ? c.number : "", servico: s ? (IDX.catalog.get(s.catalog_service_id) || {}).name : "", casa: h ? h.name : "", valor: e.value_paid }); total += e.value_paid;
+  }
+  rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const body = rows.map(r => `<tr><td>${fmtDate(r.date)}</td><td>${esc(r.contrato)} · ${esc(r.casa)}<br><small class="mut">${esc(r.servico)}</small></td><td>${money(r.valor)}</td></tr>`).join("");
+  return sel + `<p class="mut" style="font-size:13px;margin-top:10px">Total: <b>${money(total)}</b></p><table class="rep"><tr><th>Data</th><th>Contrato · Casa</th><th>Valor</th></tr>${body || '<tr><td class="mut">Sem lançamentos.</td></tr>'}</table>`;
+}
+
+// ---------- Mais (hub) ----------
+const voltarMais = () => `<button class="btn sec sm voltar" data-act="irTela" data-tela="mais">← Mais</button>`;
+function vMais() {
+  topo("Mais", "");
+  const item = (tl, label, sub) => `<button class="row" data-act="irTela" data-tela="${tl}"><div class="g"><b>${label}</b><small>${sub}</small></div><span class="mut">›</span></button>`;
+  document.getElementById("main").innerHTML = `
+    <p class="sec-t" style="margin-top:0">Cadastros e visões</p>
+    <div class="rows">
+      ${item("descontos", "Descontos", "Adiantamentos e valores a descontar")}
+      ${item("rastreabilidade", "Rastreabilidade", "Documentação do concreto por casa")}
+      ${item("mapa", "Mapa de serviços", "Situação de cada casa")}
+      ${item("modulos", "Módulos", "Casas, tipos e fileiras")}
+      ${item("catalogo", "Catálogo", "Serviços e empreiteiros")}
+    </div>
+    <p class="sec-t">Nuvem (Google Drive)</p>
+    <div class="card">
+      <div class="field" style="margin:0 0 8px"><label for="aCid" style="font-size:12px">Client ID do Google Cloud</label><input id="aCid" value="${esc(S.config.driveClientId || "")}" placeholder="123456-abc.apps.googleusercontent.com" style="font-size:12px"></div>
+      <p class="mut" style="font-size:12px;margin:0 0 10px">O passo a passo pra criar o Client ID está no README do repositório. Seus dados ficam num arquivo <code>controle-obra.json</code> dentro do seu Drive.</p>
+      <p style="font-size:13px;margin:0 0 10px">Estado: <b>${{ off: "desconectado", sync: "sincronizado" + (DRIVE.quando ? " às " + DRIVE.quando : ""), busy: "sincronizando…", err: "erro — " + esc(DRIVE.erro) }[DRIVE.estado]}</b></p>
+      <button class="btn sm" data-act="sync">${DRIVE.estado === "off" ? "Conectar e sincronizar" : "Sincronizar agora"}</button>
+    </div>
+    <p class="sec-t">Dados</p>
+    <div class="card">
+      <p class="mut" style="font-size:13px;margin:0 0 12px">${S.contracts.length} contratos, ${S.entries.length} lançamentos e ${S.measurements.length} medições neste aparelho.</p>
+      <div class="acts"><button class="btn sm" data-act="importar">Importar backup</button><button class="btn sec sm" data-act="exportar">Exportar backup</button></div>
+    </div>
+    <p class="mut" style="text-align:center;font-size:12px;margin-top:14px">Controle de Obra · versão site</p>`;
+}
+
+// ---------- Catálogo ----------
+function vCatalogo() { topo("Catálogo", ""); document.getElementById("main").innerHTML = voltarMais() + catalogoSecao("Serviços", "service_catalog", "cat") + catalogoSecao("Empreiteiros", "teams", "team"); }
+function catalogoSecao(titulo, tabela, pref) {
+  const itens = S[tabela].slice().sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
+  const rows = itens.map(it => `<div class="row" style="cursor:default">
+    <div class="g"><b style="${it.active ? "" : "opacity:.5"}">${esc(it.name)}${it.active ? "" : ' <span class="tag mut">inativo</span>'}</b></div>
+    <button class="btn sec sm" data-act="renomearCat" data-tab2="${tabela}" data-id="${it.id}">✎</button>
+    <button class="btn sec sm" data-act="toggleAtivo" data-tab2="${tabela}" data-id="${it.id}">${it.active ? "Desativar" : "Reativar"}</button>
+  </div>`).join("");
+  return `<p class="sec-t">${titulo}</p>
+    <div class="row" style="cursor:default;gap:8px"><input id="${pref}Novo" placeholder="Adicionar..."><button class="btn sm" data-act="addCat" data-tab2="${tabela}" data-pref="${pref}">+</button></div>
+    <div class="rows" style="margin-top:8px">${rows || '<div class="row"><span class="mut">Nada cadastrado.</span></div>'}</div>`;
+}
+function formRenomear(tabela, id) {
+  const it = S[tabela].find(x => x.id === id); if (!it) return;
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Renomear</h2>
+    <div class="field" style="margin-top:8px"><input id="renVal" value="${esc(it.name)}"></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarRenomear" data-tab2="${tabela}" data-id="${id}">Salvar</button></div></div>`;
+  dlg.showModal(); setTimeout(() => dlg.querySelector("#renVal").focus(), 50);
+}
+
+// ---------- telas em construção (preenchidas nas próximas edições) ----------
+// ---------- Módulos ----------
+function vModulos() {
+  if (!modSel) {
+    topo("Módulos", S.modules.length + " módulos");
+    const rows = S.modules.map(m => {
+      const nc = S.houses.filter(h => h.module_id === m.id).length, nf = S.house_groups.filter(g => g.module_id === m.id).length;
+      return `<button class="row" data-act="verModulo" data-id="${m.id}"><div class="g"><b>${esc(m.name)}</b><small>${nc} casas · ${nf} fileiras</small></div><span class="mut">›</span></button>`;
+    }).join("");
+    document.getElementById("main").innerHTML = voltarMais() + `<div class="rows" style="margin-top:8px">${rows || '<div class="row"><span class="mut">Nenhum módulo.</span></div>'}</div>`;
+    return;
+  }
+  const m = IDX.module.get(modSel); if (!m) { modSel = null; return vModulos(); }
+  const fileiras = S.house_groups.filter(g => g.module_id === m.id).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  const casas = casasDoModulo(m.id);
+  topo(m.name, casas.length + " casas");
+  const chipsFil = fileiras.map(g => `<span class="tag in" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0">${esc(g.name)} <button class="icobtn" data-act="rmFileira" data-id="${g.id}" style="padding:0 3px">✕</button></span>`).join("");
+  const optFil = `<option value="">Sem fileira</option>${fileiras.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join("")}`;
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
+    linhas += `<div class="row" style="cursor:default"><input type="checkbox" data-act="modCheck" data-id="${h.id}" ${modChecks.has(h.id) ? "checked" : ""} style="margin-right:4px">
+      <div class="g"><b>${esc(h.name)} <span class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</span></b></div>
+      <button class="btn sec sm" data-act="renomearCasa" data-id="${h.id}">✎</button></div>`;
+  }
+  document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarModulos">← Módulos</button>
+    <p class="sec-t">Fileiras</p><div>${chipsFil || '<span class="mut">Nenhuma.</span>'}</div>
+    <div class="row" style="cursor:default;gap:8px;margin-top:6px"><input id="novaFileira" placeholder="Nova fileira (ex: 1ª Fileira)"><button class="btn sm" data-act="addFileira" data-id="${m.id}">+</button></div>
+    <p class="sec-t">Adicionar casas</p>
+    <div class="card"><textarea id="novasCasas" rows="2" placeholder="Uma por linha (ex: 100, 102...)"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px"><select id="novoTipo"><option value="tipo_1">Tipo 1</option><option value="tipo_2">Tipo 2</option></select><select id="novoGrupo">${optFil}</select><button class="btn sm" data-act="addCasas" data-id="${m.id}">Adicionar</button></div></div>
+    <p class="sec-t">Casas ${modChecks.size ? `· ${modChecks.size} marcada(s)` : ""}</p>
+    ${modChecks.size ? `<div class="row" style="cursor:default;gap:8px;margin-bottom:6px"><select id="moverGrupo">${optFil}</select><button class="btn sm" data-act="moverCasas">Mover marcadas</button></div>` : ""}
+    <div class="rows">${linhas}</div>`;
+}
+function formRenomearCasa(hid) {
+  const h = IDX.house.get(hid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Renomear casa</h2><div class="field" style="margin-top:8px"><input id="rcVal" value="${esc(h.name)}"></div><div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarRenomearCasa" data-id="${hid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+
+// ---------- Mapa de serviços ----------
+function statusMapa(hid, catId) {
+  // melhor status entre os contratos que têm esse serviço nessa casa
+  let st = null; // null=não aplica
+  for (const sh of S.service_house) {
+    if (sh.house_id !== hid) continue;
+    const s = IDX.service.get(sh.service_id); if (!s || s.catalog_service_id !== catId) continue;
+    const pago = IDX.paidBySH.get(sh.id) || 0;
+    const atual = sh.completed ? 3 : (pago > 0.01 ? 2 : 1);
+    if (atual > (st || 0)) st = atual;
+  }
+  return st; // 1 pendente, 2 parcial, 3 feito, null n/a
+}
+function vMapa() {
+  const mods = S.modules; if (!mapMod && mods.length) mapMod = String(mods[0].id);
+  const mid = Number(mapMod), casas = casasDoModulo(mid);
+  // serviços (catálogo) presentes nos contratos deste módulo
+  const catIds = new Set();
+  for (const s of S.services) { const c = IDX.contract.get(s.contract_id); if (c && c.module_id === mid) catIds.add(s.catalog_service_id); }
+  const cats = [...catIds].map(id => IDX.catalog.get(id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+  topo("Mapa de serviços", (IDX.module.get(mid) || {}).name || "");
+  const ctrl = `${voltarMais()}<div style="margin:8px 0"><select id="mapMod">${mods.map(m => `<option value="${m.id}" ${mapMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
+  if (!cats.length) { document.getElementById("main").innerHTML = ctrl + '<p class="mut">Nenhum serviço nos contratos deste módulo.</p>'; return; }
+  const dot = st => st === 3 ? '<span style="color:var(--ok-tx)">●</span>' : st === 2 ? '<span style="color:#d0a020">◐</span>' : st === 1 ? '<span style="color:var(--tx3)">○</span>' : '<span class="mut">·</span>';
+  // banda de fileira
+  let bandas = [], grupo = null; for (const h of casas) { const g = nomeGrupo(h); const last = bandas[bandas.length - 1]; if (last && last.g === g) last.n++; else bandas.push({ g, n: 1 }); }
+  const anyFil = casas.some(h => h.group_id);
+  const head1 = anyFil ? `<tr><th class="h"></th>${bandas.map(b => `<th colspan="${b.n}" style="text-align:center;font-size:9px">${esc(b.g)}</th>`).join("")}</tr>` : "";
+  const head2 = `<tr><th class="h">Serviço</th>${casas.map(h => `<th style="text-align:center;font-size:10px">${esc(h.name)}</th>`).join("")}</tr>`;
+  const body = cats.map(cat => `<tr><td class="h" style="font-size:11px">${esc(cat.name)}</td>${casas.map(h => `<td style="text-align:center">${dot(statusMapa(h.id, cat.id))}</td>`).join("")}</tr>`).join("");
+  document.getElementById("main").innerHTML = ctrl + `<div class="gradewrap"><table class="grade"><thead>${head1}${head2}</thead><tbody>${body}</tbody></table></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px" class="mut"><span><span style="color:var(--ok-tx)">●</span> Realizado</span><span><span style="color:#d0a020">◐</span> Em andamento</span><span><span style="color:var(--tx3)">○</span> A fazer</span><span>· Não se aplica</span></div>`;
+}
+// ---------- Descontos ----------
+function debtTotals(d) {
+  let pago = 0; for (const p of S.debt_payments) if (p.debt_id === d.id) pago += p.amount;
+  return { pago, saldo: d.total_amount - pago, quitado: (d.total_amount - pago) <= 0.01, parcela: d.installments > 0 ? d.total_amount / d.installments : d.total_amount };
+}
+function vDescontos() {
+  const teams = S.teams.slice().sort((a, b) => a.name.localeCompare(b.name));
+  let debts = S.debts.map(d => ({ d, ...debtTotals(d) }));
+  if (descTeam) debts = debts.filter(x => String(x.d.team_id) === descTeam);
+  if (descStatus === "aberto") debts = debts.filter(x => !x.quitado);
+  else if (descStatus === "quitado") debts = debts.filter(x => x.quitado);
+  const grupos = new Map();
+  for (const x of debts) { const t = IDX.team.get(x.d.team_id) || {}; if (!grupos.has(x.d.team_id)) grupos.set(x.d.team_id, { nome: t.name || "—", itens: [], aberto: 0 }); const g = grupos.get(x.d.team_id); g.itens.push(x); if (!x.quitado) g.aberto += x.saldo; }
+  const totalAberto = debts.reduce((a, x) => a + (x.saldo > 0 ? x.saldo : 0), 0);
+  topo("Descontos", money(totalAberto) + " em aberto");
+  const filtros = `<div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn sm" data-act="novoDesconto">+ Novo</button><button class="btn sec sm" data-act="importarDesc">Importar planilha (CSV)</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <select id="dfTeam" style="flex:1;min-width:140px"><option value="">Todos os empreiteiros</option>${teams.map(t => `<option value="${t.id}" ${descTeam == t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <select id="dfStatus"><option value="aberto" ${descStatus === "aberto" ? "selected" : ""}>Em aberto</option><option value="quitado" ${descStatus === "quitado" ? "selected" : ""}>Quitados</option><option value="" ${descStatus === "" ? "selected" : ""}>Todos</option></select>
+    </div>`;
+  const corpo = [...grupos.values()].sort((a, b) => a.nome.localeCompare(b.nome)).map(g => `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:15px">${esc(g.nome)}</h2><span class="tag ${g.aberto > 0.01 ? "wa" : "ok"}">${g.aberto > 0.01 ? "Em aberto " + money(g.aberto) : "Quitado"}</span></div>
+      <div class="rows" style="margin-top:8px">${g.itens.map(debtRow).join("")}</div></div>`).join("");
+  document.getElementById("main").innerHTML = voltarMais() + filtros + (corpo || '<p class="mut">Nenhum desconto para o filtro.</p>');
+}
+function debtRow(x) {
+  const d = x.d, aberto = descExp === d.id;
+  let det = "";
+  if (aberto) {
+    const pags = S.debt_payments.filter(p => p.debt_id === d.id).sort((a, b) => a.date < b.date ? -1 : 1);
+    det = `<div style="padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line)">
+      ${pags.length ? `<table class="mats">${pags.map(p => `<tr><td>${fmtDate(p.date)}${p.notes ? '<br><small class="mut">' + esc(p.notes) + '</small>' : ''}</td><td>${money(p.amount)}</td><td><button class="icobtn" data-act="rmPag" data-id="${p.id}">✕</button></td></tr>`).join("")}</table>` : '<p class="mut" style="margin:0 0 8px">Sem pagamentos.</p>'}
+      <div class="acts" style="margin-top:8px"><button class="btn sm" data-act="novoPag" data-id="${d.id}">Registrar pagamento</button><button class="btn er sm" data-act="rmDebt" data-id="${d.id}">Excluir desconto</button></div></div>`;
+  }
+  return `<button class="row" data-act="descExp" data-id="${d.id}" aria-current="${aberto}"><div class="g"><b>${x.quitado ? "✓ " : ""}${esc(d.description)}</b><small>${d.installments}x · total ${money(d.total_amount)} · pago ${money(x.pago)}</small></div><span class="v">${money(x.saldo)}</span></button>${det}`;
+}
+function formNovoDesconto() {
+  const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Novo desconto</h2>
+    <div class="field" style="margin-top:8px"><label>Empreiteiro</label><select id="ndTeam">${teams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Descrição</label><input id="ndDesc" placeholder="ex: Lixadeira, Adiantamento"></div>
+    <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Valor total</label><input type="number" step="0.01" id="ndTotal"></div><div class="field" style="flex:1"><label>Parcelas</label><input type="number" min="1" id="ndParc" value="1"></div></div>
+    <div class="field"><label>Anotação (opcional)</label><input id="ndNota"></div>
+    <p class="err" id="ndErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarDesconto">Criar</button></div></div>`;
+  dlg.showModal();
+}
+function formNovoPag(debtId) {
+  const d = S.debts.find(x => x.id === debtId), tt = debtTotals(d);
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Registrar pagamento</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 8px">${esc(d.description)} · saldo ${money(tt.saldo)}</p>
+    <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Valor</label><input type="number" step="0.01" id="npVal" value="${tt.parcela.toFixed(2)}"></div><div class="field" style="flex:1"><label>Data</label><input type="date" id="npData" value="${new Date().toISOString().slice(0, 10)}"></div></div>
+    <div class="field"><label>Anotação (opcional)</label><input id="npNota"></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarPag" data-id="${debtId}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+// importação de CSV: EMPREITEIRO;DESCRIÇÃO;VALOR (aceita ; ou , como separador; casa nomes com o catálogo)
+function processarCsvDescontos(texto) {
+  const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (linhas.length < 2) return { erro: "Planilha vazia." };
+  const sep = (linhas[0].match(/;/g) || []).length >= (linhas[0].match(/,/g) || []).length ? ";" : ",";
+  const H = linhas[0].split(sep).map(s => s.trim().toUpperCase());
+  const iE = H.findIndex(h => h.includes("EMPREIT")), iD = H.findIndex(h => h.includes("DESCRI")), iV = H.findIndex(h => h.includes("VALOR"));
+  if (iE < 0 || iD < 0 || iV < 0) return { erro: "Preciso das colunas EMPREITEIRO, DESCRIÇÃO e VALOR." };
+  const idByName = new Map(S.teams.map(t => [t.name.trim().toUpperCase(), t.id]));
+  const rows = [], naoAchou = new Map();
+  for (const l of linhas.slice(1)) {
+    const c = l.split(sep); const nome = (c[iE] || "").trim(); if (!nome) continue;
+    const tid = idByName.get(nome.toUpperCase());
+    if (!tid) { naoAchou.set(nome, (naoAchou.get(nome) || 0) + 1); continue; }
+    let v = (c[iV] || "").replace(/[R$\s]/g, ""); if (v.includes(",")) v = v.replace(/\./g, "").replace(",", ".");
+    rows.push({ team_id: tid, team_name: nome, description: (c[iD] || "").trim(), total_amount: Number(v) || 0 });
+  }
+  return { rows, naoAchou: [...naoAchou.entries()] };
+}
+function previewImportDesc(res) {
+  descImport = res.rows;
+  const total = res.rows.reduce((a, r) => a + r.total_amount, 0);
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Conferir importação</h2>
+    <p><b>${res.rows.length}</b> desconto(s) · Total <b>${money(total)}</b></p>
+    ${res.naoAchou.length ? `<div class="note wa"><div><b>⚠ ${res.naoAchou.length} nome(s) não encontrados</b> — serão ignorados:<br>${res.naoAchou.map(([n, c]) => esc(n) + " (" + c + ")").join(", ")}</div></div>` : ""}
+    ${res.rows.length ? `<table class="mats">${res.rows.slice(0, 8).map(r => `<tr><td>${esc(r.team_name)}</td><td>${esc(r.description)}</td><td>${money(r.total_amount)}</td></tr>`).join("")}${res.rows.length > 8 ? `<tr><td colspan="3" class="mut">… e mais ${res.rows.length - 8}</td></tr>` : ""}</table>` : ""}
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="confirmarImportDesc" ${res.rows.length ? "" : "disabled"}>Importar ${res.rows.length}</button></div></div>`;
+  dlg.showModal();
+}
+function vRastreabilidade() {
+  const mods = S.modules;
+  if (!rastMod && mods.length) rastMod = String(mods[0].id);
+  const mid = Number(rastMod);
+  const todasCasas = casasDoModulo(mid);
+  const totalMarc = todasCasas.reduce((a, h) => a + ITENS_RAST.filter(i => docFeito(h.id, i.key)).length, 0);
+  const totalCells = todasCasas.length * ITENS_RAST.length, pct = totalCells ? totalMarc / totalCells * 100 : 0;
+  const comNota = todasCasas.filter(h => h.notes).length;
+  const casas = rastSoNota ? todasCasas.filter(h => h.notes) : todasCasas;
+  const anyFil = todasCasas.some(h => h.group_id);
+  topo("Rastreabilidade", (IDX.module.get(mid) || {}).name || "");
+  const ctrl = `${voltarMais()}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+      <select id="rastMod" style="flex:1;min-width:160px">${mods.map(m => `<option value="${m.id}" ${rastMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
+      <label class="chip" style="display:inline-flex;align-items:center;gap:6px" aria-pressed="${rastSoNota}"><input type="checkbox" id="rastNota" ${rastSoNota ? "checked" : ""}> 📝 Só com anotação${comNota ? " (" + comNota + ")" : ""}</label>
+    </div>
+    <div class="kpi" style="margin-bottom:10px"><p>Itens marcados</p><b>${totalMarc}/${totalCells} <span style="color:var(--ac)">(${pct.toFixed(0)}%)</span></b><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+  const grupos = []; for (const i of ITENS_RAST) { const last = grupos[grupos.length - 1]; if (last && last.g === i.grupo) last.n++; else grupos.push({ g: i.grupo, n: 1 }); }
+  const head1 = `<tr><th class="h"></th>${grupos.map(g => `<th colspan="${g.n}" style="text-align:center">${g.g}</th>`).join("")}<th></th></tr>`;
+  const head2 = `<tr><th class="h">Casa</th>${ITENS_RAST.map(i => `<th style="text-align:center;font-weight:600"><div style="font-size:9px;white-space:normal;max-width:64px">${esc(i.label)}</div><input type="checkbox" data-act="rastCol" data-k="${i.key}" ${casas.length && casas.every(h => docFeito(h.id, i.key)) ? "checked" : ""}></th>`).join("")}<th style="text-align:center">Todos</th></tr>`;
+  let body = "", grupo = null;
+  for (const h of casas) {
+    if (anyFil) { const g = nomeGrupo(h); if (g !== grupo) { grupo = g; const gids = casas.filter(x => nomeGrupo(x) === g).map(x => x.id); body += `<tr class="fil"><td>${esc(g)}</td>${ITENS_RAST.map(i => `<td style="text-align:center"><input type="checkbox" data-act="rastFil" data-k="${i.key}" data-grp="${esc(g)}" ${gids.length && gids.every(id => docFeito(id, i.key)) ? "checked" : ""}></td>`).join("")}<td></td></tr>`; } }
+    const todos = ITENS_RAST.every(i => docFeito(h.id, i.key));
+    body += `<tr><td class="h">${esc(h.name)}${h.notes ? " 📝" : ""} <button class="icobtn" data-act="notaCasa" data-id="${h.id}" style="padding:0 4px" title="Anotação">✎</button></td>${ITENS_RAST.map(i => `<td style="text-align:center"><input type="checkbox" data-act="rastDoc" data-h="${h.id}" data-k="${i.key}" ${docFeito(h.id, i.key) ? "checked" : ""}></td>`).join("")}<td style="text-align:center"><input type="checkbox" data-act="rastTodos" data-h="${h.id}" ${todos ? "checked" : ""}></td></tr>`;
+  }
+  document.getElementById("main").innerHTML = ctrl + `<div class="gradewrap"><table class="grade"><thead>${head1}${head2}</thead><tbody>${body || '<tr><td class="mut">Sem casas.</td></tr>'}</tbody></table></div>`;
+}
+function formNotaCasa(hid) {
+  const h = IDX.house.get(hid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Anotação — casa ${esc(h.name)}</h2>
+    <div class="field" style="margin-top:8px"><textarea id="notaVal" rows="3" placeholder="ex: parede 3 refeita, corpo de prova fora do padrão...">${esc(h.notes || "")}</textarea></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Fechar</button><button class="btn" data-act="salvarNota" data-id="${hid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+
+// ---------- eventos ----------
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  const id = t.dataset.id ? Number(t.dataset.id) : null;
+  const shId = t.dataset.sh ? Number(t.dataset.sh) : null;
+  const dlg = document.getElementById("dlg");
+  switch (t.dataset.act) {
+    case "abrir": tela = "contratos"; sel = id; subServico = null; return render();
+    case "voltar": sel = null; subServico = null; return render();
+    case "voltarServico": subServico = null; return render();
+    case "verServico": subServico = id; return render();
+    case "viewLista": contratoView = "lista"; return render();
+    case "viewGrade": contratoView = "grade"; return render();
+    case "togAtencao": fAtencao = !fAtencao; return render();
+    case "lancarCel": return abrirLancamento(shId);
+    case "toggleReal": toggleRealizado(shId); return render();
+    case "bulk": return abrirBulk(id);
+    case "fecharDlg": return dlg.close();
+    case "aplicarPadrao": {
+      const v = document.getElementById("bPadrao").value;
+      document.querySelectorAll(".bval").forEach(i => i.value = v);
+      return atualizarResumoBulk();
+    }
+    case "salvarLanc": {
+      const team = Number(document.getElementById("lTeam").value), data = document.getElementById("lData").value, valor = Number(document.getElementById("lValor").value);
+      if (!team || !data) return;
+      try {
+        checarSaldo(IDX.sh.get(shId), valor, null);
+        lancar(shId, resolveMedicao(team, data), valor);
+        dlg.close(); render();
+      } catch (err) { const el = document.getElementById("lErr"); el.textContent = err.message; el.style.display = "block"; }
+      return;
+    }
+    case "rmLanc": {
+      if (!confirm("Excluir este lançamento?")) return;
+      excluirLancamento(id);
+      if (dlgSh) abrirLancamento(dlgSh);
+      return render();
+    }
+    case "salvarBulk": {
+      const team = Number(document.getElementById("bTeam").value), data = document.getElementById("bData").value;
+      if (!team || !data) return;
+      const itens = [...document.querySelectorAll(".bchk:checked")].map(c => ({ shId: Number(c.dataset.sh), valor: Number((document.querySelector(`.bval[data-sh="${c.dataset.sh}"]`) || {}).value) }));
+      const el = document.getElementById("bErr");
+      if (!itens.length) { el.textContent = "Marque pelo menos uma casa."; el.style.display = "block"; return; }
+      try {
+        itens.forEach(it => checarSaldo(IDX.sh.get(it.shId), it.valor, null));
+        lancarVarias(resolveMedicao(team, data), itens);
+        dlg.close(); render();
+      } catch (err) { el.textContent = err.message; el.style.display = "block"; }
+      return;
+    }
+    case "medExp": medExp = (medExp === id ? null : id); return render();
+    case "novaMedicao": return formNovaMedicao();
+    case "salvarMedicao": {
+      const team = Number(document.getElementById("nmTeam").value), data = document.getElementById("nmData").value, nota = document.getElementById("nmNota").value.trim();
+      if (!team || !data) return;
+      if (S.measurements.some(m => m.team_id === team && m.date === data)) { const el = document.getElementById("nmErr"); el.textContent = "Já existe uma medição desse empreiteiro nessa data."; el.style.display = "block"; return; }
+      S.measurements.push({ id: nextId("measurements"), team_id: team, date: data, notes: nota || null }); salvar();
+      dlg.close(); return render();
+    }
+    case "rmLancM": { if (!confirm("Excluir este lançamento?")) return; excluirLancamento(id); return render(); }
+    case "rmMedicao": {
+      if (S.entries.some(e => e.measurement_id === id)) return alert("Essa medição tem lançamentos.");
+      if (!confirm("Excluir esta medição?")) return;
+      S.measurements = S.measurements.filter(m => m.id !== id); if (medExp === id) medExp = null; salvar(); return render();
+    }
+    case "repDim": repDim = t.dataset.id; return render();
+    case "irTela": tela = t.dataset.tela; sel = null; subServico = null; return render();
+    case "addCat": {
+      const pref = t.dataset.pref, tabela = t.dataset.tab2, nome = document.getElementById(pref + "Novo").value.trim();
+      if (!nome) return;
+      if (S[tabela].some(x => (x.name || "").trim().toUpperCase() === nome.toUpperCase())) return alert("Já existe com esse nome.");
+      S[tabela].push({ id: nextId(tabela), name: nome, active: 1 }); salvar(); return render();
+    }
+    case "toggleAtivo": { const it = S[t.dataset.tab2].find(x => x.id === id); it.active = it.active ? 0 : 1; salvar(); return render(); }
+    case "renomearCat": return formRenomear(t.dataset.tab2, id);
+    case "salvarRenomear": {
+      const it = S[t.dataset.tab2].find(x => x.id === id), nome = document.getElementById("renVal").value.trim();
+      if (nome) { it.name = nome; salvar(); }
+      dlg.close(); return render();
+    }
+    case "descExp": descExp = (descExp === id ? null : id); return render();
+    case "novoDesconto": return formNovoDesconto();
+    case "salvarDesconto": {
+      const team = Number(document.getElementById("ndTeam").value), desc = document.getElementById("ndDesc").value.trim(), total = Number(document.getElementById("ndTotal").value) || 0, parc = Number(document.getElementById("ndParc").value) || 1, nota = document.getElementById("ndNota").value.trim();
+      if (!team || !desc) { const el = document.getElementById("ndErr"); el.textContent = "Empreiteiro e descrição são obrigatórios."; el.style.display = "block"; return; }
+      S.debts.push({ id: nextId("debts"), team_id: team, description: desc, total_amount: total, installments: parc, notes: nota || null, created_at: agoraSql() });
+      salvar(); dlg.close(); return render();
+    }
+    case "novoPag": return formNovoPag(id);
+    case "salvarPag": {
+      const val = Number(document.getElementById("npVal").value) || 0, data = document.getElementById("npData").value, nota = document.getElementById("npNota").value.trim();
+      if (!data) return;
+      S.debt_payments.push({ id: nextId("debt_payments"), debt_id: id, amount: val, date: data, notes: nota || null, created_at: agoraSql() });
+      salvar(); dlg.close(); return render();
+    }
+    case "rmPag": { if (!confirm("Excluir este pagamento?")) return; S.debt_payments = S.debt_payments.filter(p => p.id !== id); salvar(); return render(); }
+    case "rmDebt": { if (!confirm("Excluir o desconto e seus pagamentos?")) return; S.debt_payments = S.debt_payments.filter(p => p.debt_id !== id); S.debts = S.debts.filter(d => d.id !== id); if (descExp === id) descExp = null; salvar(); return render(); }
+    case "rastDoc": marcarDoc([Number(t.dataset.h)], [t.dataset.k], t.checked); return render();
+    case "rastTodos": marcarDoc([Number(t.dataset.h)], ITENS_RAST.map(i => i.key), t.checked); return render();
+    case "rastCol": { const ids = casasDoModulo(Number(rastMod)).filter(h => !rastSoNota || h.notes).map(h => h.id); marcarDoc(ids, [t.dataset.k], t.checked); return render(); }
+    case "rastFil": { const g = t.dataset.grp, ids = casasDoModulo(Number(rastMod)).filter(h => nomeGrupo(h) === g).map(h => h.id); marcarDoc(ids, [t.dataset.k], t.checked); return render(); }
+    case "notaCasa": return formNotaCasa(id);
+    case "salvarNota": { const h = IDX.house.get(id); h.notes = document.getElementById("notaVal").value.trim() || null; salvar(); dlg.close(); return render(); }
+    case "verModulo": modSel = id; modChecks = new Set(); return render();
+    case "voltarModulos": modSel = null; modChecks = new Set(); return render();
+    case "modCheck": if (modChecks.has(id)) modChecks.delete(id); else modChecks.add(id); return render();
+    case "renomearCasa": return formRenomearCasa(id);
+    case "salvarRenomearCasa": { const h = IDX.house.get(id), nome = document.getElementById("rcVal").value.trim(); if (nome) { h.name = nome; salvar(); } dlg.close(); return render(); }
+    case "addFileira": {
+      const nome = document.getElementById("novaFileira").value.trim(); if (!nome) return;
+      const ord = Math.max(0, ...S.house_groups.filter(g => g.module_id === id).map(g => g.order_index || 0)) + 1;
+      S.house_groups.push({ id: nextId("house_groups"), module_id: id, name: nome, order_index: ord }); salvar(); return render();
+    }
+    case "rmFileira": { if (!confirm("Remover esta fileira? As casas ficam sem fileira.")) return; S.houses.forEach(h => { if (h.group_id === id) h.group_id = null; }); S.house_groups = S.house_groups.filter(g => g.id !== id); salvar(); return render(); }
+    case "addCasas": {
+      const nomes = document.getElementById("novasCasas").value.split(/[\n,]/).map(s => s.trim()).filter(Boolean); if (!nomes.length) return;
+      const tipo = document.getElementById("novoTipo").value, grupo = document.getElementById("novoGrupo").value;
+      for (const nome of nomes) S.houses.push({ id: nextId("houses"), module_id: id, name: nome, type: tipo, group_id: grupo ? Number(grupo) : null, notes: null });
+      salvar(); return render();
+    }
+    case "moverCasas": {
+      const grupo = document.getElementById("moverGrupo").value;
+      S.houses.forEach(h => { if (modChecks.has(h.id)) h.group_id = grupo ? Number(grupo) : null; });
+      modChecks = new Set(); salvar(); return render();
+    }
+    case "importarDesc": return document.getElementById("fileDesc").click();
+    case "confirmarImportDesc": {
+      if (descImport && descImport.length) { for (const r of descImport) S.debts.push({ id: nextId("debts"), team_id: r.team_id, description: r.description, total_amount: r.total_amount, installments: 1, notes: null, created_at: agoraSql() }); salvar(); }
+      descImport = null; dlg.close(); return render();
+    }
+    case "exportar": return baixar("obra-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(S), "application/json");
+    case "importar": return document.getElementById("fileImp").click();
+    case "sync": { const cid = document.getElementById("aCid"); if (cid) { const v = cid.value.trim(); if (v !== (S.config.driveClientId || "")) { S.config.driveClientId = v; persistir(); } } return sincronizar(true); }
+  }
+});
+document.addEventListener("input", e => {
+  if (e.target.id === "fBusca") { busca = e.target.value; return vContratos(); }
+  if (e.target.classList && e.target.classList.contains("bval")) return atualizarResumoBulk();
+});
+document.addEventListener("change", e => {
+  if (e.target.id === "fMod") { fModulo = e.target.value; return vContratos(); }
+  if (e.target.id === "fSt") { fStatus = e.target.value; return vContratos(); }
+  if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
+  if (e.target.id === "mfDe") { medDe = e.target.value; return render(); }
+  if (e.target.id === "mfAte") { medAte = e.target.value; return render(); }
+  if (e.target.id === "rTipo") { repTipo = e.target.value; return render(); }
+  if (e.target.id === "rMod") { repMod = e.target.value; return render(); }
+  if (e.target.id === "rServ") { repServ = e.target.value; return render(); }
+  if (e.target.id === "rTeam") { repTeam = e.target.value; return render(); }
+  if (e.target.id === "rDe") { repDe = e.target.value; return render(); }
+  if (e.target.id === "rAte") { repAte = e.target.value; return render(); }
+  if (e.target.id === "dfTeam") { descTeam = e.target.value; return render(); }
+  if (e.target.id === "dfStatus") { descStatus = e.target.value; return render(); }
+  if (e.target.id === "rastMod") { rastMod = e.target.value; return render(); }
+  if (e.target.id === "rastNota") { rastSoNota = e.target.checked; return render(); }
+  if (e.target.id === "mapMod") { mapMod = e.target.value; return render(); }
+  if (e.target.id === "fileDesc" && e.target.files.length) {
+    const fr = new FileReader();
+    fr.onload = () => { const res = processarCsvDescontos(fr.result); if (res.erro) return alert(res.erro); previewImportDesc(res); };
+    fr.readAsText(e.target.files[0]); e.target.value = "";
+  }
+  if (e.target.id === "bAll") { document.querySelectorAll(".bchk").forEach(c => c.checked = e.target.checked); return atualizarResumoBulk(); }
+  if (e.target.dataset && e.target.dataset.filgrp) {
+    const g = e.target.dataset.filgrp;
+    document.querySelectorAll(".bchk").forEach(c => { const tr = c.closest("tr"); if (tr && tr.dataset.grp === g) c.checked = e.target.checked; });
+    return atualizarResumoBulk();
+  }
+  if (e.target.classList && e.target.classList.contains("bchk")) return atualizarResumoBulk();
+  if (e.target.id === "fileImp" && e.target.files.length) {
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        const d = JSON.parse(fr.result);
+        if (!d || !Array.isArray(d.contracts)) throw 0;
+        if (!confirm("Substituir os dados atuais por " + d.contracts.length + " contratos do arquivo?")) return;
+        carregarDados(d); render(); alert("Dados importados.");
+      } catch (err) { alert("Arquivo inválido."); }
+    };
+    fr.readAsText(e.target.files[0]); e.target.value = "";
+  }
+});
+document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => ir(b.dataset.tab));
+
+// ---------- Google Drive ----------
+// ponytail: última versão ganha, sem mesclagem por registro. Usuário único
+// (um aparelho por vez); sincroniza ao abrir a sessão e 3 s após cada alteração.
+// Se editar em dois aparelhos sem sincronizar no meio, a versão mais antiga perde.
+const DRIVE = { estado: "off", erro: "", quando: null, timer: null };
+const SCOPE_DRIVE = "https://www.googleapis.com/auth/drive.file";
+function tokenValido() {
+  try { const t = JSON.parse(sessionStorage.getItem("obra_tok") || "null"); return t && t.exp > Date.now() + 60000 ? t.tok : null; } catch (e) { return null; }
+}
+function conectar() {
+  return new Promise((res, rej) => {
+    if (!S.config.driveClientId) return rej(new Error("informe o Client ID nos ajustes"));
+    if (!window.google || !google.accounts) return rej(new Error("biblioteca do Google não carregou (sem internet?)"));
+    google.accounts.oauth2.initTokenClient({
+      client_id: S.config.driveClientId, scope: SCOPE_DRIVE,
+      callback: r => {
+        if (r.error) return rej(new Error(r.error));
+        sessionStorage.setItem("obra_tok", JSON.stringify({ tok: r.access_token, exp: Date.now() + r.expires_in * 1000 }));
+        res(r.access_token);
+      },
+      error_callback: e => rej(new Error(e.type === "popup_closed" ? "janela fechada" : e.type || "erro"))
+    }).requestAccessToken({ prompt: "" });
+  });
+}
+async function dapi(path, opts = {}, upload = false) {
+  const tok = tokenValido(); if (!tok) throw new Error("não conectado");
+  const r = await fetch((upload ? "https://www.googleapis.com/upload/drive/v3/" : "https://www.googleapis.com/drive/v3/") + path,
+    Object.assign({}, opts, { headers: Object.assign({ Authorization: "Bearer " + tok }, opts.headers || {}) }));
+  if (r.status === 401) { sessionStorage.removeItem("obra_tok"); throw new Error("sessão expirou, conecte de novo"); }
+  if (!r.ok) { let msg = ""; try { msg = (await r.json()).error.message; } catch (e) { } throw new Error("Drive respondeu " + r.status + (msg ? ": " + msg : "")); }
+  return r;
+}
+const dBuscar = async (nome, pasta) => {
+  const q = `name='${nome}' and trashed=false` + (pasta ? ` and '${pasta}' in parents` : "");
+  return (await (await dapi("files?q=" + encodeURIComponent(q) + "&fields=files(id,modifiedTime)")).json()).files[0] || null;
+};
+async function dCriar(nome, blob, pasta, mime) {
+  const meta = { name: nome, parents: pasta ? [pasta] : [] };
+  if (!blob) meta.mimeType = "application/vnd.google-apps.folder";
+  const fd = new FormData();
+  fd.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
+  if (blob) fd.append("file", new Blob([blob], { type: mime }));
+  const r = await dapi(blob ? "files?uploadType=multipart&fields=id" : "files?fields=id", { method: "POST", body: blob ? fd : JSON.stringify(meta), headers: blob ? {} : { "Content-Type": "application/json" } }, !!blob);
+  return (await r.json()).id;
+}
+const dAtualizar = (id, blob, mime) => dapi("files/" + id + "?uploadType=media", { method: "PATCH", body: blob, headers: { "Content-Type": mime } }, true);
+async function pastaDrive() {
+  const p = await dBuscar("Controle de Obra");
+  return p ? p.id : dCriar("Controle de Obra", null);
+}
+async function sincronizar(interativo) {
+  if (DRIVE.estado === "busy") return;
+  let mudou = false;
+  try {
+    if (!tokenValido()) { if (!interativo) return; await conectar(); }
+    DRIVE.estado = "busy"; if (tela === "mais") vMais();
+    const pasta = await pastaDrive();
+    const arq = await dBuscar("controle-obra.json", pasta);
+    let subir = !arq;
+    if (arq) {
+      const remoto = JSON.parse(await (await dapi("files/" + arq.id + "?alt=media")).text());
+      const rs = (remoto.config && remoto.config.salvoEm) || "", ls = S.config.salvoEm || "";
+      if (rs > ls) {
+        const novo = PADRAO();
+        for (const t of TABELAS) if (Array.isArray(remoto[t])) novo[t] = remoto[t];
+        novo.config = Object.assign({}, remoto.config || {});
+        novo.config.driveClientId = novo.config.driveClientId || S.config.driveClientId;
+        S = novo; indexar(); await idbSet("estado", S); mudou = true;
+      } else if (ls > rs) subir = true;
+    }
+    if (subir) {
+      const blob = new Blob([JSON.stringify(S)], { type: "application/json" });
+      if (arq) await dAtualizar(arq.id, blob, "application/json"); else await dCriar("controle-obra.json", blob, pasta, "application/json");
+    }
+    DRIVE.estado = "sync"; DRIVE.quando = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    DRIVE.estado = tokenValido() ? "err" : "off"; DRIVE.erro = e.message;
+    if (interativo) alert("Não sincronizou: " + e.message);
+  }
+  if (mudou) render(); else if (tela === "mais") vMais();
+}
+function agendarSync() {
+  if (!tokenValido()) return;
+  clearTimeout(DRIVE.timer);
+  DRIVE.timer = setTimeout(() => sincronizar(false), 3000);
+}
+
+// ---------- init ----------
+async function init() {
+  try {
+    const salvo = await idbGet("estado");
+    if (salvo && salvo.contracts) { S = salvo; indexar(); }
+    else {
+      // primeira vez: tenta semear com o arquivo de migração (só existe localmente; nunca vai pro repo público)
+      try {
+        const r = await fetch("./dados-migrados.json", { cache: "no-store" });
+        if (r.ok) { carregarDados(await r.json()); }
+        else indexar();
+      } catch { indexar(); }
+    }
+  } catch (e) { console.error(e); indexar(); }
+  render();
+  if (tokenValido()) sincronizar(false);
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+}
+
+// ---------- autoteste (?teste=1) ----------
+function autoteste() {
+  const ok = []; const T = (n, c) => ok.push((c ? "ok   " : "FALHA") + "  " + n);
+  const bkp = S;
+  S = PADRAO();
+  S.modules = [{ id: 1, name: "M1" }];
+  S.houses = [{ id: 1, module_id: 1, name: "A", type: "tipo_1" }, { id: 2, module_id: 1, name: "B", type: "tipo_2" }];
+  S.contracts = [{ id: 1, number: "CT/1", name: "X", module_id: 1, status: "ativo", attention: 0 }];
+  S.contract_houses = [{ contract_id: 1, house_id: 1 }, { contract_id: 1, house_id: 2 }];
+  S.services = [{ id: 1, contract_id: 1, catalog_service_id: 1, unit_value_type1: 100, unit_value_type2: 200, order_index: 0 }];
+  S.service_catalog = [{ id: 1, name: "Piso", active: 1 }];
+  S.service_house = [{ id: 1, service_id: 1, house_id: 1, completed: 0 }, { id: 2, service_id: 1, house_id: 2, completed: 1 }];
+  S.teams = [{ id: 1, name: "EQ", active: 1 }];
+  S.measurements = [{ id: 1, team_id: 1, date: "2026-01-10" }, { id: 2, team_id: 1, date: "2026-02-10" }];
+  S.entries = [
+    { id: 1, service_house_id: 1, measurement_id: 1, value_paid: 40, created_at: "2026-01-10 09:00:00" },
+    { id: 2, service_house_id: 2, measurement_id: 2, value_paid: 200, created_at: "2026-02-10 09:00:00" },
+  ];
+  indexar();
+  T("valor unitário segue o tipo da casa", unitValue(S.service_house[0]) === 100 && unitValue(S.service_house[1]) === 200);
+  const t = totaisDoContrato(1);
+  T("contratado = 100 + 200 = 300", t.contratado === 300);
+  T("pago = 40 + 200 = 240", t.pago === 240);
+  T("saldo = 60", t.saldo === 60);
+  const meds = medicoesDoContrato(1);
+  T("medições numeradas por vínculo (1 depois 2)", meds.length === 2 && meds[0].seq === 1 && meds[1].seq === 2 && meds[1].id === 2);
+  T("money formata em R$", money(60).replace(/ /g, " ") === "R$ 60,00");
+  // --- lançamento (persistência desligada no teste) ---
+  const _persistir = persistir; persistir = () => { };
+  S.entries = []; indexar();
+  const mId = resolveMedicao(1, "2026-03-01");
+  T("resolveMedicao cria quando não existe", S.measurements.some(m => m.id === mId));
+  T("resolveMedicao mescla mesmo empreiteiro+data", resolveMedicao(1, "2026-03-01") === mId);
+  lancar(1, mId, 100);
+  T("lançar soma no pago e marca realizado", (IDX.paidBySH.get(1) || 0) === 100 && IDX.sh.get(1).completed === 1);
+  let barrou = false; try { checarSaldo(IDX.sh.get(1), 1, null); } catch { barrou = true; }
+  T("saldo barra passar do valor (T1=100, pago 100)", barrou);
+  lancar(2, mId, 200);
+  T("contrato conclui quando tudo é pago", IDX.contract.get(1).status === "concluido");
+  excluirLancamento(S.entries[S.entries.length - 1].id);
+  T("excluir lançamento reabre o contrato", IDX.contract.get(1).status === "ativo");
+  indexar();
+  const ag = agrupar(linhasBase(), r => ({ key: r.contract.id, label: "c" }));
+  T("relatório agrupa contratado/pago do contrato", ag.length === 1 && ag[0].unit_value === 300 && ag[0].total_paid === 100);
+  const ev = evolucao();
+  T("evolução: por data, casas e acumulado", ev.length === 1 && ev[0].casas === 1 && ev[0].valor === 100 && ev[0].acum === 100);
+  persistir = _persistir;
+  S = bkp; indexar();
+  document.body.innerHTML = '<pre style="padding:16px;font:13px ui-monospace,monospace;white-space:pre-wrap">' +
+    ok.join("\n") + "\n\n" + (ok.some(x => x.startsWith("FALHA")) ? "TEM FALHA" : "tudo passou") + "</pre>";
+}
+
+if (location.search.includes("teste")) { S = PADRAO(); indexar(); autoteste(); }
+else init();
+</script>
+</body>
+</html>

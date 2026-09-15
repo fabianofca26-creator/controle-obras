@@ -1,0 +1,9 @@
+# NUNCA versionar os dados do negócio — eles ficam só no aparelho / Google Drive.
+# O app hospedado começa vazio e o usuário importa este arquivo uma vez, localmente.
+dados-migrados.json
+*.db
+obra-*.json
+
+node_modules/
+.DS_Store
+*.log
