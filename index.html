@@ -542,7 +542,7 @@ function vContrato() {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <select id="ctStatus" style="width:auto">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${c.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
-        <span class="mut" style="font-size:12px">${(IDX.housesByContract.get(c.id) || []).length} casas</span>
+        <button class="btn sec sm" data-act="ajustarCasas" style="width:auto">${(IDX.housesByContract.get(c.id) || []).length} casas · ajustar</button>
       </div>
       <div style="margin-top:10px">
         <button class="chip" data-act="togAtencaoC" aria-pressed="${!!c.attention}" style="${c.attention ? "background:var(--wa-bg);color:var(--wa-tx);border-color:transparent" : ""}">${c.attention ? "⚠ Atenção — tocar p/ tirar" : "Marcar atenção"}</button>
@@ -562,7 +562,8 @@ function vContrato() {
       ${contratoView === "grade" ? `<button class="chip" data-act="togOcultar" aria-pressed="${ocultarPagos}">Ocultar pagos</button><button class="chip" data-act="togEmpreiteiro" aria-pressed="${gradeEmpreiteiro}">Empreiteiros</button>` : ""}
       <button class="btn sm" data-act="novoServico" style="margin-left:auto;width:auto">+ Novo serviço</button>
     </div>
-    ${contratoView === "grade" ? gradeHTML(c.id) : `<p class="sec-t" style="margin-top:4px">Serviços — toque para lançar</p><div class="rows">${servicos || '<div class="row"><span class="mut">Nenhum serviço.</span></div>'}</div>`}`;
+    ${contratoView === "grade" ? gradeHTML(c.id) : `<p class="sec-t" style="margin-top:4px">Serviços — toque para lançar</p><div class="rows">${servicos || '<div class="row"><span class="mut">Nenhum serviço.</span></div>'}</div>`}
+    <div style="margin-top:18px;text-align:center"><button class="btn er sm" data-act="excluirContrato" style="width:auto">Excluir contrato</button></div>`;
 }
 
 // grade: matriz casas (linhas) × serviços (colunas); célula = saldo, clique lança
@@ -783,6 +784,30 @@ function abrirNovoContrato() {
     <div id="ncHouses">${ncHousesHTML(modDef)}</div>
     <p class="err" id="ncErr" style="display:none;color:var(--er-tx,#c0392b)"></p>
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarNovoContrato">Criar</button></div>`}
+  </div>`;
+  dlg.showModal();
+}
+// ajustar quais casas fazem parte do contrato; casas com lançamento não podem sair
+function abrirAjustarCasas() {
+  const c = IDX.contract.get(sel); if (!c) return;
+  const casas = casasDoModulo(c.module_id);
+  const noContrato = new Set(IDX.housesByContract.get(c.id) || []);
+  const svcIds = new Set(S.services.filter(s => s.contract_id === c.id).map(s => s.id));
+  const travadas = new Set();
+  for (const e of S.entries) { const sh = IDX.sh.get(e.service_house_id); if (sh && svcIds.has(sh.service_id)) travadas.add(sh.house_id); }
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<tr><td colspan="2" class="filsub"><label style="margin:0;display:flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" data-filgrp="${esc(g)}"> ${esc(g)}</label></td></tr>`; }
+    const trav = travadas.has(h.id), marc = noContrato.has(h.id) || trav;
+    linhas += `<tr data-grp="${esc(g)}"><td><input type="checkbox" class="bchk" data-house="${h.id}" ${marc ? "checked" : ""} ${trav ? "disabled" : ""}></td><td>${esc(h.name)} <small class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</small>${trav ? ' <span class="tag mut">com lançamento</span>' : ""}</td></tr>`;
+  }
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Ajustar casas</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 6px">${esc(c.number)} — ${esc(c.name)}. Marque as casas deste contrato. As que já têm lançamento não podem sair.</p>
+    ${casas.length ? `<div class="matswrap"><table class="mats"><thead><tr><td></td><td>Casa</td></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="mut">Este módulo não tem casas.</p>'}
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarAjustarCasas">Salvar</button></div>
   </div>`;
   dlg.showModal();
 }
@@ -1200,6 +1225,37 @@ document.addEventListener("click", e => {
     case "verServico": subServico = id; servFiltroTeam = ""; return render();
     case "viewLista": contratoView = "lista"; return render();
     case "viewGrade": contratoView = "grade"; return render();
+    case "ajustarCasas": return abrirAjustarCasas();
+    case "salvarAjustarCasas": {
+      const cid = sel, svcList = S.services.filter(s => s.contract_id === cid), svcIds = new Set(svcList.map(s => s.id));
+      const travadas = new Set();
+      for (const en of S.entries) { const sh = IDX.sh.get(en.service_house_id); if (sh && svcIds.has(sh.service_id)) travadas.add(sh.house_id); }
+      const requested = [...dlg.querySelectorAll(".bchk:checked")].map(x => Number(x.dataset.house));
+      const finalSet = new Set([...requested, ...travadas]);
+      S.contract_houses = S.contract_houses.filter(ch => ch.contract_id !== cid || finalSet.has(ch.house_id));
+      const jaCH = new Set(S.contract_houses.filter(ch => ch.contract_id === cid).map(ch => ch.house_id));
+      let chId = nextId("contract_houses");
+      for (const hid of finalSet) if (!jaCH.has(hid)) S.contract_houses.push({ id: chId++, contract_id: cid, house_id: hid });
+      S.service_house = S.service_house.filter(sh => !svcIds.has(sh.service_id) || finalSet.has(sh.house_id));
+      const existe = new Set(S.service_house.filter(sh => svcIds.has(sh.service_id)).map(sh => sh.service_id + "_" + sh.house_id));
+      let shId = nextId("service_house");
+      for (const s of svcList) for (const hid of finalSet) { const k = s.id + "_" + hid; if (!existe.has(k)) { S.service_house.push({ id: shId++, service_id: s.id, house_id: hid, completed: 0 }); existe.add(k); } }
+      indexar(); recomputarStatus(cid); persistir();
+      dlg.close(); return render();
+    }
+    case "excluirContrato": {
+      const cid = sel, c = IDX.contract.get(cid); if (!c) return;
+      const svcIds = new Set(S.services.filter(s => s.contract_id === cid).map(s => s.id));
+      const temLanc = S.entries.some(en => { const sh = IDX.sh.get(en.service_house_id); return sh && svcIds.has(sh.service_id); });
+      if (temLanc) return alert("Não é possível excluir: este contrato já tem medições lançadas.");
+      if (!confirm(`Excluir o contrato ${c.number} — ${c.name}? Isso não pode ser desfeito.`)) return;
+      S.service_house = S.service_house.filter(sh => !svcIds.has(sh.service_id));
+      S.services = S.services.filter(s => s.contract_id !== cid);
+      S.contract_houses = S.contract_houses.filter(ch => ch.contract_id !== cid);
+      S.reservations = S.reservations.filter(r => r.contract_id !== cid);
+      S.contracts = S.contracts.filter(x => x.id !== cid);
+      salvar(); sel = null; subServico = null; tela = "contratos"; return render();
+    }
     case "togAtencaoC": { const c = IDX.contract.get(sel); if (c) { c.attention = c.attention ? 0 : 1; salvar(); } return render(); }
     case "salvarNotasC": { const c = IDX.contract.get(sel), ta = document.getElementById("ctNotes"); if (c && ta) { c.notes = ta.value.trim() || null; salvar(); } return render(); }
     case "togOcultar": ocultarPagos = !ocultarPagos; return render();
