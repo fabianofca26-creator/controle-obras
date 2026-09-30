@@ -568,7 +568,7 @@ function gradeHTML(cid) {
       const saldo = unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0);
       tds += `<td class="cel ${saldo <= 0.01 ? "pago" : ""}" data-act="lancarCel" data-sh="${sh.id}" title="${esc(nome(s))} — ${esc(h.name)}">${sh.completed ? "✓ " : ""}${money(saldo)}</td>`;
     }
-    body += `<tr><td class="h">${esc(h.name)} <span class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</span></td>${tds}</tr>`;
+    body += `<tr><td class="h" data-act="bulkCasa" data-id="${h.id}" style="cursor:pointer" title="Lançar todos os serviços desta casa">${esc(h.name)} <span class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</span></td>${tds}</tr>`;
   }
   return `<div class="gradewrap"><table class="grade"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
@@ -668,7 +668,33 @@ function atualizarResumoBulk() {
   const el = document.getElementById("bResumo"); if (!el) return;
   const marcadas = [...document.querySelectorAll(".bchk:checked")];
   let tot = 0; marcadas.forEach(c => { const v = document.querySelector(`.bval[data-sh="${c.dataset.sh}"]`); tot += Number(v && v.value) || 0; });
-  el.textContent = marcadas.length + " casa(s) · Total " + money(tot);
+  el.textContent = marcadas.length + " marcado(s) · Total " + money(tot);
+}
+// lançar de uma vez TODOS os serviços de uma casa (só os com saldo em aberto)
+// reusa #bTeam/#bData/.bchk[data-sh]/.bval + salvarBulk/aplicarPadrao
+function abrirBulkCasa(houseId) {
+  const h = IDX.house.get(houseId);
+  const services = S.services.filter(s => s.contract_id === sel).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  const nomeServ = s => (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
+  const aplic = services.map(s => { const sh = shDe(s.id, houseId); if (!sh) return null; const saldo = unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0); return saldo > 0.01 ? { s, sh, saldo } : null; }).filter(Boolean);
+  const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
+  const linhas = aplic.map(({ s, sh, saldo }) => `<tr><td><input type="checkbox" class="bchk" data-sh="${sh.id}"></td><td>${esc(nomeServ(s))}<br><small class="mut">saldo ${money(saldo)}</small></td><td><input type="number" step="0.01" class="bval" data-sh="${sh.id}" value="${saldo}" style="width:100px"></td></tr>`).join("");
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Lançar serviços da casa</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 12px">Casa ${esc(h.name)}</p>
+    <div class="field"><label>Empreiteiro</label><select id="bTeam">${teams.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1"><label>Data</label><input type="date" id="bData" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <div class="field" style="flex:1"><label>Valor padrão</label><input type="number" step="0.01" id="bPadrao" placeholder="ex: 250"></div>
+      <button class="btn sec" style="width:auto;margin-bottom:12px" data-act="aplicarPadrao">Aplicar</button>
+    </div>
+    <div id="bResumo" class="mut" style="font-size:13px;margin-bottom:6px"></div>
+    ${aplic.length ? `<table class="mats"><tr><td><input type="checkbox" id="bAll"></td><td>Serviço</td><td>Valor</td></tr>${linhas}</table>` : '<p class="mut">Nenhum serviço com saldo em aberto nesta casa.</p>'}
+    <p class="err" id="bErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarBulk">Salvar</button></div>
+  </div>`;
+  dlg.showModal(); atualizarResumoBulk();
 }
 // novo serviço num contrato: escolhe catálogo + valor T1/T2 + em quais casas (por fileira)
 function abrirNovoServico() {
@@ -1088,6 +1114,7 @@ document.addEventListener("click", e => {
     case "lancarCel": return abrirLancamento(shId);
     case "toggleReal": toggleRealizado(shId); return render();
     case "bulk": return abrirBulk(id);
+    case "bulkCasa": return abrirBulkCasa(id);
     case "fecharDlg": return dlg.close();
     case "aplicarPadrao": {
       const v = document.getElementById("bPadrao").value;
