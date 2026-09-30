@@ -1227,7 +1227,11 @@ document.addEventListener("click", e => {
   }
 });
 document.addEventListener("input", e => {
-  if (e.target.id === "fBusca") { busca = e.target.value; return vContratos(); }
+  if (e.target.id === "fBusca") {
+    const pos = e.target.selectionStart; busca = e.target.value; vContratos();
+    const el = document.getElementById("fBusca"); if (el) { el.focus(); el.setSelectionRange(pos, pos); }
+    return;
+  }
   if (e.target.classList && e.target.classList.contains("bval")) return atualizarResumoBulk();
 });
 document.addEventListener("change", e => {
