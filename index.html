@@ -188,6 +188,7 @@ let sel = null;          // contrato aberto
 let subServico = null;   // serviço aberto dentro do contrato
 let contratoView = "lista"; // "lista" | "grade"
 let ocultarPagos = false;   // grade: esconde casas/serviços totalmente quitados
+let servFiltroTeam = "";    // serviço: filtra casas pelo último empreiteiro
 let busca = "", fStatus = "", fModulo = "", fAtencao = false;
 let medTeam = "", medDe = "", medAte = "", medExp = null;
 let repTipo = "resumo", repDim = "house", repMod = "", repCont = "", repServ = "", repTeam = "", repDe = "", repAte = "";
@@ -589,9 +590,24 @@ function vServico() {
   if (!c || !s) { subServico = null; return vContrato(); }
   const nome = (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
   topo(nome, c.number + " — " + c.name);
+  // último empreiteiro por casa (deste serviço): medição mais recente por data, desempate created_at
+  const ultimo = new Map(); // shId -> team_id
+  { const best = new Map();
+    for (const e of S.entries) {
+      const sh = IDX.sh.get(e.service_house_id); if (!sh || sh.service_id !== s.id) continue;
+      const m = IDX.measurement.get(e.measurement_id); if (!m) continue;
+      const key = (m.date || "") + "|" + (e.created_at || "");
+      const cur = best.get(e.service_house_id);
+      if (!cur || key > cur.key) best.set(e.service_house_id, { key, team_id: m.team_id });
+    }
+    for (const [sh, v] of best) ultimo.set(sh, v.team_id);
+  }
+  const nomeTeam = tid => (IDX.team.get(tid) || {}).name || "—";
   let linhas = "", grupo = null, saldoTotal = 0;
   for (const h of casasDoContrato(sel)) {
     const sh = shDe(s.id, h.id); if (!sh) continue;
+    const teamId = ultimo.get(sh.id) || null;
+    if (servFiltroTeam && String(teamId) !== servFiltroTeam) continue;
     const g = nomeGrupo(h);
     if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
     const uv = unitValue(sh), pago = IDX.paidBySH.get(sh.id) || 0, saldo = uv - pago;
@@ -601,11 +617,14 @@ function vServico() {
       <button class="g" data-act="lancarCel" data-sh="${sh.id}" style="background:none;border:0;text-align:left;cursor:pointer;padding:0;min-width:0">
         <b>${esc(h.name)} <span class="mut" style="font-weight:400">(${h.type === "tipo_1" ? "T1" : "T2"})</span></b>
         <small>${money(pago)} / ${money(uv)} · saldo ${money(saldo)}</small>
+        <small class="mut">Último: ${teamId ? esc(nomeTeam(teamId)) : "—"}</small>
         <div class="bar"><i style="width:${pct}%"></i></div>
       </button>
       <span class="reali ${sh.completed ? "on" : ""}" data-act="toggleReal" data-sh="${sh.id}">${sh.completed ? "✓" : "○"} Realizado</span>
     </div>`;
   }
+  const teamsTrab = [...new Set(ultimo.values())].map(tid => [tid, nomeTeam(tid)]).sort((a, b) => a[1].localeCompare(b[1]));
+  const filtro = teamsTrab.length ? `<div class="field" style="margin-bottom:10px"><select id="servTeam"><option value="">Todos os empreiteiros</option>${teamsTrab.map(([tid, n]) => `<option value="${tid}" ${servFiltroTeam == tid ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div>` : "";
   document.getElementById("main").innerHTML = `
     <button class="btn sec sm voltar" data-act="voltarServico">← ${esc(c.number)}</button>
     <div class="card">
@@ -615,7 +634,8 @@ function vServico() {
       </div>
       <button class="btn sm" style="margin-top:12px" data-act="bulk" data-id="${s.id}">Lançar em várias casas</button>
     </div>
-    <div class="rows">${linhas || '<div class="row"><span class="mut">Sem casas.</span></div>'}</div>`;
+    ${filtro}
+    <div class="rows">${linhas || '<div class="row"><span class="mut">Nenhuma casa com esse empreiteiro.</span></div>'}</div>`;
 }
 
 // ---------- modais de lançamento ----------
@@ -1117,7 +1137,7 @@ document.addEventListener("click", e => {
     case "abrir": tela = "contratos"; sel = id; subServico = null; return render();
     case "voltar": sel = null; subServico = null; return render();
     case "voltarServico": subServico = null; return render();
-    case "verServico": subServico = id; return render();
+    case "verServico": subServico = id; servFiltroTeam = ""; return render();
     case "viewLista": contratoView = "lista"; return render();
     case "viewGrade": contratoView = "grade"; return render();
     case "togOcultar": ocultarPagos = !ocultarPagos; return render();
@@ -1276,6 +1296,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   if (e.target.id === "fMod") { fModulo = e.target.value; return vContratos(); }
   if (e.target.id === "fSt") { fStatus = e.target.value; return vContratos(); }
+  if (e.target.id === "servTeam") { servFiltroTeam = e.target.value; return render(); }
   if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
   if (e.target.id === "mfDe") { medDe = e.target.value; return render(); }
   if (e.target.id === "mfAte") { medAte = e.target.value; return render(); }
