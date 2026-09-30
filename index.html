@@ -187,6 +187,7 @@ let tela = "painel";
 let sel = null;          // contrato aberto
 let subServico = null;   // serviço aberto dentro do contrato
 let contratoView = "lista"; // "lista" | "grade"
+let ocultarPagos = false;   // grade: esconde casas/serviços totalmente quitados
 let busca = "", fStatus = "", fModulo = "", fAtencao = false;
 let medTeam = "", medDe = "", medAte = "", medExp = null;
 let repTipo = "resumo", repDim = "house", repMod = "", repCont = "", repServ = "", repTeam = "", repDe = "", repAte = "";
@@ -546,6 +547,7 @@ function vContrato() {
     <div style="margin:4px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="chip" data-act="viewLista" aria-pressed="${contratoView === "lista"}">Lista</button>
       <button class="chip" data-act="viewGrade" aria-pressed="${contratoView === "grade"}">Grade</button>
+      ${contratoView === "grade" ? `<button class="chip" data-act="togOcultar" aria-pressed="${ocultarPagos}">Ocultar pagos</button>` : ""}
       <button class="btn sm" data-act="novoServico" style="margin-left:auto;width:auto">+ Novo serviço</button>
     </div>
     ${contratoView === "grade" ? gradeHTML(c.id) : `<p class="sec-t" style="margin-top:4px">Serviços — toque para lançar</p><div class="rows">${servicos || '<div class="row"><span class="mut">Nenhum serviço.</span></div>'}</div>`}`;
@@ -553,12 +555,20 @@ function vContrato() {
 
 // grade: matriz casas (linhas) × serviços (colunas); célula = saldo, clique lança
 function gradeHTML(cid) {
-  const services = S.services.filter(s => s.contract_id === cid).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-  if (!services.length) return '<p class="mut">Sem serviços neste contrato.</p>';
+  const fullServices = S.services.filter(s => s.contract_id === cid).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  if (!fullServices.length) return '<p class="mut">Sem serviços neste contrato.</p>';
   const nome = s => (IDX.catalog.get(s.catalog_service_id) || {}).name || "—";
+  const allHouses = casasDoContrato(cid);
+  const emAberto = sh => sh && (unitValue(sh) - (IDX.paidBySH.get(sh.id) || 0)) > 0.01;
+  let services = fullServices, houses = allHouses;
+  if (ocultarPagos) {
+    services = fullServices.filter(s => allHouses.some(h => emAberto(shDe(s.id, h.id))));
+    houses = allHouses.filter(h => fullServices.some(s => emAberto(shDe(s.id, h.id))));
+  }
+  if (!services.length || !houses.length) return '<p class="mut">Tudo pago neste contrato. 🎉</p>';
   let head = `<tr><th class="h">Casa</th>${services.map(s => `<th data-act="bulk" data-id="${s.id}" title="Lançar em várias casas — ${esc(nome(s))}">${esc(nome(s))}</th>`).join("")}</tr>`;
   let body = "", grupo = null;
-  for (const h of casasDoContrato(cid)) {
+  for (const h of houses) {
     const g = nomeGrupo(h);
     if (g !== grupo) { grupo = g; body += `<tr class="fil"><td colspan="${services.length + 1}">${esc(g)}</td></tr>`; }
     let tds = "";
@@ -1110,6 +1120,7 @@ document.addEventListener("click", e => {
     case "verServico": subServico = id; return render();
     case "viewLista": contratoView = "lista"; return render();
     case "viewGrade": contratoView = "grade"; return render();
+    case "togOcultar": ocultarPagos = !ocultarPagos; return render();
     case "togAtencao": fAtencao = !fAtencao; return render();
     case "lancarCel": return abrirLancamento(shId);
     case "toggleReal": toggleRealizado(shId); return render();
