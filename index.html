@@ -542,9 +542,10 @@ function vContrato() {
       <div class="kpi"><p>Pago</p><b>${money(t.pago)}</b></div>
       <div class="kpi"><p>Saldo</p><b>${money(t.saldo)}</b></div>
     </div>
-    <div style="margin:4px 0 10px">
+    <div style="margin:4px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="chip" data-act="viewLista" aria-pressed="${contratoView === "lista"}">Lista</button>
       <button class="chip" data-act="viewGrade" aria-pressed="${contratoView === "grade"}">Grade</button>
+      <button class="btn sm" data-act="novoServico" style="margin-left:auto;width:auto">+ Novo serviço</button>
     </div>
     ${contratoView === "grade" ? gradeHTML(c.id) : `<p class="sec-t" style="margin-top:4px">Serviços — toque para lançar</p><div class="rows">${servicos || '<div class="row"><span class="mut">Nenhum serviço.</span></div>'}</div>`}`;
 }
@@ -667,6 +668,34 @@ function atualizarResumoBulk() {
   const marcadas = [...document.querySelectorAll(".bchk:checked")];
   let tot = 0; marcadas.forEach(c => { const v = document.querySelector(`.bval[data-sh="${c.dataset.sh}"]`); tot += Number(v && v.value) || 0; });
   el.textContent = marcadas.length + " casa(s) · Total " + money(tot);
+}
+// novo serviço num contrato: escolhe catálogo + valor T1/T2 + em quais casas (por fileira)
+function abrirNovoServico() {
+  const cid = sel;
+  const usados = new Set(S.services.filter(s => s.contract_id === cid).map(s => s.catalog_service_id));
+  const cats = S.service_catalog.filter(sc => sc.active && !usados.has(sc.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const casas = casasDoContrato(cid);
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<tr><td colspan="2" class="filsub"><label style="margin:0;display:flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" data-filgrp="${esc(g)}" checked> ${esc(g)}</label></td></tr>`; }
+    linhas += `<tr data-grp="${esc(g)}"><td><input type="checkbox" class="bchk" data-house="${h.id}" checked></td><td>${esc(h.name)} <small class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</small></td></tr>`;
+  }
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Novo serviço</h2>
+    ${!cats.length ? `<p class="mut">Todos os serviços do catálogo já estão neste contrato. Cadastre novos em Mais → Catálogo.</p><div class="dacts"><button class="btn" data-act="fecharDlg">Fechar</button></div>`
+      : `<div class="field"><label>Serviço (catálogo)</label><select id="nsCat">${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Valor Tipo 1</label><input type="number" step="0.01" id="nsV1" placeholder="0"></div>
+      <div class="field" style="flex:1"><label>Valor Tipo 2</label><input type="number" step="0.01" id="nsV2" placeholder="0"></div>
+    </div>
+    <p class="sec-t" style="margin:6px 0 4px">Casas onde este serviço se aplica</p>
+    ${casas.length ? `<table class="mats"><tr><td><input type="checkbox" id="bAll" checked></td><td>Casa</td></tr>${linhas}</table>` : '<p class="mut">Este contrato não tem casas vinculadas.</p>'}
+    <p class="err" id="nsErr" style="display:none;color:var(--er-tx,#c0392b)"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarNovoServico" data-id="${cid}">Criar</button></div>`}
+  </div>`;
+  dlg.showModal();
 }
 
 // ---------- Medições ----------
@@ -1172,6 +1201,25 @@ document.addEventListener("click", e => {
     case "confirmarImportDesc": {
       if (descImport && descImport.length) { for (const r of descImport) S.debts.push({ id: nextId("debts"), team_id: r.team_id, description: r.description, total_amount: r.total_amount, installments: 1, notes: null, created_at: agoraSql() }); salvar(); }
       descImport = null; dlg.close(); return render();
+    }
+    case "novoServico": return abrirNovoServico();
+    case "salvarNovoServico": {
+      const cid = id;
+      const catId = Number(document.getElementById("nsCat").value);
+      const v1 = Number(document.getElementById("nsV1").value) || 0, v2 = Number(document.getElementById("nsV2").value) || 0;
+      const houseIds = [...document.querySelectorAll(".bchk:checked")].map(c => Number(c.dataset.house));
+      const err = document.getElementById("nsErr"), falha = m => { err.textContent = m; err.style.display = "block"; };
+      if (!catId) return falha("Escolha um serviço.");
+      if (!houseIds.length) return falha("Selecione pelo menos uma casa.");
+      if (v1 <= 0 && v2 <= 0) return falha("Informe o valor do Tipo 1 e/ou Tipo 2.");
+      const ord = Math.max(-1, ...S.services.filter(s => s.contract_id === cid).map(s => s.order_index || 0)) + 1;
+      const sid = nextId("services");
+      S.services.push({ id: sid, contract_id: cid, catalog_service_id: catId, unit_value_type1: v1, unit_value_type2: v2, order_index: ord });
+      let shId = nextId("service_house");
+      for (const hid of houseIds) S.service_house.push({ id: shId++, service_id: sid, house_id: hid, completed: 0 });
+      const c = IDX.contract.get(cid); if (c && c.status === "desativado") c.status = "ativo";
+      indexar(); recomputarStatus(cid); persistir();
+      dlg.close(); return render();
     }
     case "exportar": return baixar("obra-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(S), "application/json");
     case "importar": return document.getElementById("fileImp").click();
