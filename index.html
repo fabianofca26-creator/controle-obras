@@ -496,6 +496,7 @@ function vContratos() {
   }).sort((a, b) => a.number.localeCompare(b.number));
   topo("Contratos", lista.length + " de " + S.contracts.length);
   const filtros = `
+    <button class="btn sm" data-act="novoContrato" style="margin-bottom:10px;width:auto">+ Novo contrato</button>
     <div class="field"><input id="fBusca" placeholder="Buscar por número ou nome" value="${esc(busca)}"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <select id="fMod" style="width:auto;flex:1;min-width:140px"><option value="">Todos os módulos</option>${S.modules.map(m => `<option value="${m.id}" ${fModulo == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
@@ -755,6 +756,35 @@ function abrirBulkCasa(houseId) {
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarBulk">Salvar</button></div>
   </div>`;
   dlg.showModal(); atualizarResumoBulk();
+}
+// checklist de casas de um módulo (por fileira), tudo marcado — usado ao criar contrato
+function ncHousesHTML(modId) {
+  const casas = modId ? casasDoModulo(modId) : [];
+  if (!casas.length) return '<p class="mut">Este módulo não tem casas.</p>';
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<tr><td colspan="2" class="filsub"><label style="margin:0;display:flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" data-filgrp="${esc(g)}" checked> ${esc(g)}</label></td></tr>`; }
+    linhas += `<tr data-grp="${esc(g)}"><td><input type="checkbox" class="bchk" data-house="${h.id}" checked></td><td>${esc(h.name)} <small class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</small></td></tr>`;
+  }
+  return `<div class="matswrap"><table class="mats"><thead><tr><td><input type="checkbox" id="bAll" checked></td><td>Casa</td></tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+function abrirNovoContrato() {
+  const mods = S.modules.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const modDef = mods[0] ? mods[0].id : "";
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody">
+    <h2>Novo contrato</h2>
+    ${!mods.length ? `<p class="mut">Cadastre um módulo primeiro (Mais → Módulos).</p><div class="dacts"><button class="btn" data-act="fecharDlg">Fechar</button></div>`
+      : `<div class="field"><label>Número</label><input id="ncNum" placeholder="ex: 909 (vira CT/909)"></div>
+    <div class="field"><label>Nome / descrição</label><input id="ncName" placeholder="ex: RADIER"></div>
+    <div class="field"><label>Módulo</label><select id="ncMod">${mods.map(m => `<option value="${m.id}" ${m.id === modDef ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+    <p class="sec-t" style="margin:6px 0 4px">Casas incluídas</p>
+    <div id="ncHouses">${ncHousesHTML(modDef)}</div>
+    <p class="err" id="ncErr" style="display:none;color:var(--er-tx,#c0392b)"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarNovoContrato">Criar</button></div>`}
+  </div>`;
+  dlg.showModal();
 }
 // novo serviço num contrato: escolhe catálogo + valor T1/T2 + em quais casas (por fileira)
 function abrirNovoServico() {
@@ -1294,6 +1324,21 @@ document.addEventListener("click", e => {
       if (descImport && descImport.length) { for (const r of descImport) S.debts.push({ id: nextId("debts"), team_id: r.team_id, description: r.description, total_amount: r.total_amount, installments: 1, notes: null, created_at: agoraSql() }); salvar(); }
       descImport = null; dlg.close(); return render();
     }
+    case "novoContrato": return abrirNovoContrato();
+    case "salvarNovoContrato": {
+      let num = document.getElementById("ncNum").value.trim();
+      const nome = document.getElementById("ncName").value.trim(), modId = Number(document.getElementById("ncMod").value);
+      const houseIds = [...document.querySelectorAll("#ncHouses .bchk:checked")].map(c => Number(c.dataset.house));
+      const err = document.getElementById("ncErr"), falha = m => { err.textContent = m; err.style.display = "block"; };
+      if (!num || !nome || !modId) return falha("Preencha número, nome e módulo.");
+      if (!/^ct\//i.test(num)) num = "CT/" + num;
+      if (S.contracts.some(c => (c.number || "").toLowerCase() === num.toLowerCase())) return falha("Já existe um contrato com esse número.");
+      const cid = nextId("contracts");
+      S.contracts.push({ id: cid, number: num, name: nome, module_id: modId, status: "desativado", reserved: 0, notes: null, attention: 0 });
+      let chId = nextId("contract_houses");
+      for (const hid of houseIds) S.contract_houses.push({ id: chId++, contract_id: cid, house_id: hid });
+      salvar(); dlg.close(); tela = "contratos"; sel = cid; subServico = null; contratoView = "lista"; return render();
+    }
     case "novoServico": return abrirNovoServico();
     case "salvarNovoServico": {
       const cid = id;
@@ -1329,6 +1374,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   if (e.target.id === "fMod") { fModulo = e.target.value; return vContratos(); }
   if (e.target.id === "fSt") { fStatus = e.target.value; return vContratos(); }
+  if (e.target.id === "ncMod") { const box = document.getElementById("ncHouses"); if (box) box.innerHTML = ncHousesHTML(Number(e.target.value)); return; }
   if (e.target.id === "ctStatus") { const c = IDX.contract.get(sel); if (c) { c.status = e.target.value; salvar(); } return render(); }
   if (e.target.id === "servTeam") { servFiltroTeam = e.target.value; return render(); }
   if (e.target.id === "gradeTeam") { gradeFiltroTeam = e.target.value; return render(); }
