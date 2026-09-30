@@ -540,10 +540,15 @@ function vContrato() {
     <button class="btn sec sm voltar" data-act="voltar">← Contratos</button>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="tag ${st[1]}">${st[0]}</span>
+        <select id="ctStatus" style="width:auto">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${c.status === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select>
         <span class="mut" style="font-size:12px">${(IDX.housesByContract.get(c.id) || []).length} casas</span>
       </div>
+      <div style="margin-top:10px">
+        <button class="chip" data-act="togAtencaoC" aria-pressed="${!!c.attention}" style="${c.attention ? "background:var(--wa-bg);color:var(--wa-tx);border-color:transparent" : ""}">${c.attention ? "⚠ Atenção — tocar p/ tirar" : "Marcar atenção"}</button>
+      </div>
       <p class="mut" style="font-size:13px;margin:10px 0 0">Última medição lançada: ${ultima ? `<b style="color:var(--in-tx)">Nº${ultima.seq} · ${esc(ultima.team_name)} — ${fmtDate(ultima.date)}</b>` : "nenhuma ainda"}</p>
+      <div class="field" style="margin:12px 0 0"><label>Observações</label><textarea id="ctNotes" rows="3" placeholder="Observações gerais deste contrato...">${esc(c.notes || "")}</textarea></div>
+      <button class="btn sec sm" data-act="salvarNotasC" style="margin-top:6px;width:auto">Salvar observação</button>
     </div>
     <div class="kpis">
       <div class="kpi"><p>Contratado</p><b>${money(t.contratado)}</b></div>
@@ -1165,6 +1170,8 @@ document.addEventListener("click", e => {
     case "verServico": subServico = id; servFiltroTeam = ""; return render();
     case "viewLista": contratoView = "lista"; return render();
     case "viewGrade": contratoView = "grade"; return render();
+    case "togAtencaoC": { const c = IDX.contract.get(sel); if (c) { c.attention = c.attention ? 0 : 1; salvar(); } return render(); }
+    case "salvarNotasC": { const c = IDX.contract.get(sel), ta = document.getElementById("ctNotes"); if (c && ta) { c.notes = ta.value.trim() || null; salvar(); } return render(); }
     case "togOcultar": ocultarPagos = !ocultarPagos; return render();
     case "togEmpreiteiro": gradeEmpreiteiro = !gradeEmpreiteiro; if (!gradeEmpreiteiro) gradeFiltroTeam = ""; return render();
     case "togAtencao": fAtencao = !fAtencao; return render();
@@ -1322,6 +1329,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   if (e.target.id === "fMod") { fModulo = e.target.value; return vContratos(); }
   if (e.target.id === "fSt") { fStatus = e.target.value; return vContratos(); }
+  if (e.target.id === "ctStatus") { const c = IDX.contract.get(sel); if (c) { c.status = e.target.value; salvar(); } return render(); }
   if (e.target.id === "servTeam") { servFiltroTeam = e.target.value; return render(); }
   if (e.target.id === "gradeTeam") { gradeFiltroTeam = e.target.value; return render(); }
   if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
