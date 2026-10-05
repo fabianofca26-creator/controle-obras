@@ -514,7 +514,40 @@ function vContratos() {
   document.getElementById("main").innerHTML = filtros + rows;
 }
 
-// ---------- Contrato (resumo — só leitura nesta fase) ----------
+// card de reservas/adiantamentos do contrato (saldo teórico, reservado, real, média por casa)
+function reservasCard(c, t) {
+  const reservas = S.reservations.filter(r => r.contract_id === c.id).sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+  const reservado = reservas.reduce((a, r) => a + (r.amount || 0), 0);
+  const nCasas = (IDX.housesByContract.get(c.id) || []).length;
+  const media = nCasas ? t.pago / nCasas : 0, real = t.saldo - reservado;
+  const stat = (lbl, val, sub, color) => `<div style="min-width:118px"><p class="mut" style="margin:0;font-size:11.5px">${lbl}</p><b style="display:block;font-size:17px;font-variant-numeric:tabular-nums${color ? ";color:" + color : ""}">${money(val)}</b><small class="mut">${sub}</small></div>`;
+  const linhas = reservas.map(r => `<tr><td>${money(r.amount)}</td><td class="mut">${esc(r.note || "-")}</td><td style="white-space:nowrap"><button class="icobtn" data-act="editarReserva" data-id="${r.id}" title="Editar">✎</button> <button class="icobtn" data-act="rmReserva" data-id="${r.id}" title="Excluir">✕</button></td></tr>`).join("");
+  return `<div class="card">
+    <p class="sec-t" style="margin-top:0">Reservas / adiantamentos</p>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      ${stat("Saldo teórico", t.saldo, "contratado − pago")}
+      ${stat("Reservado", reservado, "soma das reservas")}
+      ${stat("Saldo real", real, "teórico − reservado", real < -0.01 ? "var(--er-tx)" : "var(--ac)")}
+      ${stat("Média por casa", media, "pago ÷ casas")}
+    </div>
+    ${reservas.length ? `<table class="mats" style="margin-top:12px"><thead><tr><td>Valor</td><td>Motivo</td><td></td></tr></thead><tbody>${linhas}</tbody></table>` : ""}
+    <div class="row" style="cursor:default;gap:8px;margin-top:10px;align-items:flex-end">
+      <div class="field" style="width:130px;margin:0"><label>Reservar valor</label><input type="number" step="0.01" id="rvVal" placeholder="0"></div>
+      <div class="field" style="flex:1;margin:0"><label>Motivo</label><input id="rvNote" placeholder="ex: adiantamento combinado"></div>
+      <button class="btn sm" data-act="novaReserva" style="width:auto">Reservar</button>
+    </div>
+  </div>`;
+}
+function formEditarReserva(rid) {
+  const r = S.reservations.find(x => x.id === rid), dlg = document.getElementById("dlg"); if (!r) return;
+  dlg.innerHTML = `<div class="dbody"><h2>Editar reserva</h2>
+    <div class="field" style="margin-top:8px"><label>Valor</label><input type="number" step="0.01" id="erVal" value="${r.amount}"></div>
+    <div class="field"><label>Motivo</label><input id="erNote" value="${esc(r.note || "")}"></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarReserva" data-id="${rid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+
+// ---------- Contrato ----------
 function vContrato() {
   const c = IDX.contract.get(sel);
   if (!c) { sel = null; return vContratos(); }
@@ -556,6 +589,7 @@ function vContrato() {
       <div class="kpi"><p>Pago</p><b>${money(t.pago)}</b></div>
       <div class="kpi"><p>Saldo</p><b>${money(t.saldo)}</b></div>
     </div>
+    ${reservasCard(c, t)}
     <div style="margin:4px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="chip" data-act="viewLista" aria-pressed="${contratoView === "lista"}">Lista</button>
       <button class="chip" data-act="viewGrade" aria-pressed="${contratoView === "grade"}">Grade</button>
@@ -1256,6 +1290,15 @@ document.addEventListener("click", e => {
       S.contracts = S.contracts.filter(x => x.id !== cid);
       salvar(); sel = null; subServico = null; tela = "contratos"; return render();
     }
+    case "novaReserva": {
+      const v = Number(document.getElementById("rvVal").value), note = document.getElementById("rvNote").value.trim();
+      if (!v || v <= 0) return;
+      S.reservations.push({ id: nextId("reservations"), contract_id: sel, amount: v, note: note || null, created_at: agoraSql() });
+      salvar(); return render();
+    }
+    case "editarReserva": return formEditarReserva(id);
+    case "salvarReserva": { const r = S.reservations.find(x => x.id === id); if (r) { const v = Number(document.getElementById("erVal").value); if (v > 0) r.amount = v; r.note = document.getElementById("erNote").value.trim() || null; salvar(); } dlg.close(); return render(); }
+    case "rmReserva": { if (!confirm("Excluir esta reserva?")) return; S.reservations = S.reservations.filter(x => x.id !== id); salvar(); return render(); }
     case "togAtencaoC": { const c = IDX.contract.get(sel); if (c) { c.attention = c.attention ? 0 : 1; salvar(); } return render(); }
     case "salvarNotasC": { const c = IDX.contract.get(sel), ta = document.getElementById("ctNotes"); if (c && ta) { c.notes = ta.value.trim() || null; salvar(); } return render(); }
     case "togOcultar": ocultarPagos = !ocultarPagos; return render();
