@@ -533,20 +533,20 @@ function vContratos() {
 function reservasCard(c, t) {
   const reservas = S.reservations.filter(r => r.contract_id === c.id).sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
   const reservadoManual = reservas.reduce((a, r) => a + (r.amount || 0), 0);
-  // descontos vinculados a este contrato e marcados p/ reservar: entram pelo saldo em aberto (ao vivo)
-  const descVinc = S.debts.filter(d => d.contract_id === c.id && d.reservar).map(d => ({ d, saldo: debtTotals(d).saldo, team: (IDX.team.get(d.team_id) || {}).name || "—" })).filter(x => x.saldo > 0.01);
-  const reservadoDesc = descVinc.reduce((a, x) => a + x.saldo, 0);
+  // descontos vinculados a este contrato: TODOS aparecem; reservam só o que já foi pago (lançado)
+  const descVinc = S.debts.filter(d => d.contract_id === c.id).map(d => { const tt = debtTotals(d); return { d, pago: tt.pago, total: d.total_amount, team: (IDX.team.get(d.team_id) || {}).name || "—" }; });
+  const reservadoDesc = descVinc.reduce((a, x) => a + x.pago, 0);
   const reservado = reservadoManual + reservadoDesc;
   const nCasas = (IDX.housesByContract.get(c.id) || []).length;
   const media = nCasas ? t.pago / nCasas : 0, real = t.saldo - reservado;
   const stat = (lbl, val, sub, color) => `<div style="min-width:118px"><p class="mut" style="margin:0;font-size:11.5px">${lbl}</p><b style="display:block;font-size:17px;font-variant-numeric:tabular-nums${color ? ";color:" + color : ""}">${money(val)}</b><small class="mut">${sub}</small></div>`;
   const linhas = reservas.map(r => `<tr><td>${money(r.amount)}</td><td class="mut">${esc(r.note || "-")}</td><td style="white-space:nowrap"><button class="icobtn" data-act="editarReserva" data-id="${r.id}" title="Editar">✎</button> <button class="icobtn" data-act="rmReserva" data-id="${r.id}" title="Excluir">✕</button></td></tr>`).join("");
-  const linhasDesc = descVinc.map(x => `<tr><td>${money(x.saldo)}</td><td class="mut">Desconto: ${esc(x.d.description)} <span class="tag mut">${esc(x.team)}</span></td><td style="white-space:nowrap"><button class="btn sec sm" data-act="irTela" data-tela="descontos" title="Ver em Descontos">›</button></td></tr>`).join("");
+  const linhasDesc = descVinc.map(x => `<tr><td>${money(x.pago)}</td><td class="mut">Desconto: ${esc(x.d.description)} <span class="tag mut">${esc(x.team)}</span>${x.pago < x.total - 0.01 ? ` <small>(de ${money(x.total)})</small>` : ""}</td><td style="white-space:nowrap"><button class="btn sec sm" data-act="irTela" data-tela="descontos" title="Ver em Descontos">›</button></td></tr>`).join("");
   return `<div class="card">
     <p class="sec-t" style="margin-top:0">Reservas / adiantamentos</p>
     <div style="display:flex;gap:18px;flex-wrap:wrap">
       ${stat("Saldo teórico", t.saldo, "contratado − pago")}
-      ${stat("Reservado", reservado, descVinc.length ? "reservas + descontos" : "soma das reservas")}
+      ${stat("Reservado", reservado, descVinc.length ? "reservas + descontos pagos" : "soma das reservas")}
       ${stat("Saldo real", real, "teórico − reservado", real < -0.01 ? "var(--er-tx)" : "var(--ac)")}
       ${stat("Média por casa", media, "pago ÷ casas")}
     </div>
@@ -1380,7 +1380,6 @@ function formEditarDesconto(did) {
     <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Valor total</label><input type="number" step="0.01" id="edTotal" value="${d.total_amount}"></div><div class="field" style="flex:1"><label>Parcelas</label><input type="number" min="1" id="edParc" value="${d.installments}"></div></div>
     <div class="field"><label>Anotação</label><input id="edNota" value="${esc(d.notes || "")}"></div>
     <div class="field"><label>Contrato vinculado (opcional)</label><select id="edContrato">${optContratosDesc(d.contract_id || "")}</select></div>
-    <label class="chip" style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="edReservar" ${d.reservar ? "checked" : ""}> Reservar o valor no contrato</label>
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarEditarDesconto" data-id="${did}">Salvar</button></div></div>`;
   dlg.showModal();
 }
@@ -1460,7 +1459,7 @@ function debtRow(x) {
       ${pags.length ? `<table class="mats">${pags.map(p => `<tr><td>${fmtDate(p.date)}${p.notes ? '<br><small class="mut">' + esc(p.notes) + '</small>' : ''}</td><td>${money(p.amount)}</td><td style="white-space:nowrap"><button class="icobtn" data-act="editarPag" data-id="${p.id}" title="Editar">✎</button> <button class="icobtn" data-act="rmPag" data-id="${p.id}" title="Excluir">✕</button></td></tr>`).join("")}</table>` : '<p class="mut" style="margin:0 0 8px">Sem pagamentos.</p>'}
       <div class="acts" style="margin-top:8px"><button class="btn sm" data-act="novoPag" data-id="${d.id}">Registrar pagamento</button><button class="btn sec sm" data-act="editarDesconto" data-id="${d.id}">Editar</button><button class="btn er sm" data-act="rmDebt" data-id="${d.id}">Excluir desconto</button></div></div>`;
   }
-  const vinc = d.contract_id ? ` · <span style="color:var(--in-tx)">${d.reservar ? "reserva" : "vínc."} ${esc((IDX.contract.get(d.contract_id) || {}).number || "")}</span>` : "";
+  const vinc = d.contract_id ? ` · <span style="color:var(--in-tx)">vínc. ${esc((IDX.contract.get(d.contract_id) || {}).number || "")}</span>` : "";
   return `<button class="row" data-act="descExp" data-id="${d.id}" aria-current="${aberto}"><div class="g"><b>${x.quitado ? "✓ " : ""}${esc(d.description)}</b><small>${d.installments}x · total ${money(d.total_amount)} · pago ${money(x.pago)}${vinc}</small></div><span class="v">${money(x.saldo)}</span></button>${det}`;
 }
 function formNovoDesconto() {
@@ -1471,8 +1470,7 @@ function formNovoDesconto() {
     <div class="field"><label>Descrição</label><input id="ndDesc" placeholder="ex: Lixadeira, Adiantamento"></div>
     <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Valor total</label><input type="number" step="0.01" id="ndTotal"></div><div class="field" style="flex:1"><label>Parcelas</label><input type="number" min="1" id="ndParc" value="1"></div></div>
     <div class="field"><label>Anotação (opcional)</label><input id="ndNota"></div>
-    <div class="field"><label>Contrato vinculado (opcional)</label><select id="ndContrato">${optContratosDesc("")}</select></div>
-    <label class="chip" style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="ndReservar"> Reservar o valor no contrato</label>
+    <div class="field"><label>Contrato vinculado (opcional)</label><select id="ndContrato">${optContratosDesc("")}</select><small class="mut">Vinculando, cada pagamento lançado deste desconto vira reserva no contrato.</small></div>
     <p class="err" id="ndErr" style="display:none"></p>
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarDesconto">Criar</button></div></div>`;
   dlg.showModal();
@@ -1687,8 +1685,8 @@ document.addEventListener("click", e => {
     case "salvarDesconto": {
       const team = Number(document.getElementById("ndTeam").value), desc = document.getElementById("ndDesc").value.trim(), total = Number(document.getElementById("ndTotal").value) || 0, parc = Number(document.getElementById("ndParc").value) || 1, nota = document.getElementById("ndNota").value.trim();
       if (!team || !desc) { const el = document.getElementById("ndErr"); el.textContent = "Empreiteiro e descrição são obrigatórios."; el.style.display = "block"; return; }
-      const ctId = Number(document.getElementById("ndContrato").value) || null, reservar = document.getElementById("ndReservar").checked ? 1 : 0;
-      S.debts.push({ id: nextId("debts"), team_id: team, description: desc, total_amount: total, installments: parc, notes: nota || null, contract_id: ctId, reservar, created_at: agoraSql() });
+      const ctId = Number(document.getElementById("ndContrato").value) || null;
+      S.debts.push({ id: nextId("debts"), team_id: team, description: desc, total_amount: total, installments: parc, notes: nota || null, contract_id: ctId, created_at: agoraSql() });
       salvar(); dlg.close(); return render();
     }
     case "novoPag": return formNovoPag(id);
@@ -1790,7 +1788,7 @@ document.addEventListener("click", e => {
       d.total_amount = Number(document.getElementById("edTotal").value) || 0;
       d.installments = Math.max(1, Number(document.getElementById("edParc").value) || 1);
       d.notes = document.getElementById("edNota").value.trim() || null;
-      d.contract_id = Number(document.getElementById("edContrato").value) || null; d.reservar = document.getElementById("edReservar").checked ? 1 : 0;
+      d.contract_id = Number(document.getElementById("edContrato").value) || null;
       salvar(); dlg.close(); return render();
     }
     case "editarPag": return formEditarPag(id);
