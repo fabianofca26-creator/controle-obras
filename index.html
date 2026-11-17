@@ -170,6 +170,7 @@ table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
 </div>
 <input type="file" id="fileImp" accept=".json,application/json" hidden>
 <input type="file" id="fileDesc" accept=".csv,text/csv" hidden>
+<input type="file" id="fileConf" accept=".xlsx" hidden>
 <dialog id="dlg"></dialog>
 
 <script>
@@ -437,11 +438,11 @@ function carregarDados(d) {
 
 // ---------- navegação / render ----------
 function ir(t) { tela = t; sel = null; render(); }
-const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa"];
+const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia"];
 function render() {
   const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
   document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-current", b.dataset.tab === grupo && !sel ? "page" : "false"));
-  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa };
+  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia };
   if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
   (V[tela] || vPainel)();
 }
@@ -996,6 +997,112 @@ function relExtrato() {
 }
 
 // ---------- Mais (hub) ----------
+// ---------- Conferência de medição (Excel) ----------
+// confere, por funcionário, se o total do Resumo bate com o total da planilha individual.
+// determinístico (sem IA). O .xlsx é lido com SheetJS, carregado sob demanda (precisa de internet nessa hora).
+let confRes = null, confErro = "", confArq = "", confBusy = false, xlsxP = null;
+function carregarXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  if (xlsxP) return xlsxP;
+  xlsxP = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = () => res(); s.onerror = () => { xlsxP = null; rej(new Error("não consegui baixar a biblioteca de leitura (precisa de internet nessa hora).")); };
+    document.head.appendChild(s);
+  });
+  return xlsxP;
+}
+function conferirMedicao(wb) {
+  const norm = s => String(s == null ? "" : s).toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Z0-9]/g, "");
+  const toNum = v => { if (typeof v === "number") return v; const n = parseFloat(String(v).replace(/\./g, "").replace(",", ".")); return isFinite(n) ? n : NaN; };
+  const cel = (ws, r, c) => { const x = ws[XLSX.utils.encode_cell({ r, c })]; return x == null ? null : x.v; };
+  const names = wb.SheetNames;
+  const naoPessoa = n => /RESUMO|MODELO|ANOTAC|^PLANILHA\s*\d*$/i.test(n);
+  const resumoName = names.find(n => /RESUMO/i.test(n));
+  if (!resumoName) throw new Error("não achei a aba de Resumo (procurei por 'RESUMO' no nome das abas).");
+  const R = wb.Sheets[resumoName], rg = XLSX.utils.decode_range(R["!ref"] || "A1:A1");
+  // cabeçalho: linha com NOME e TOTAL
+  let hdr = null, nameCol = null, totCol = null;
+  for (let r = rg.s.r; r <= Math.min(rg.s.r + 6, rg.e.r); r++) {
+    let nC = null, tC = null;
+    for (let c = rg.s.c; c <= rg.e.c; c++) { const t = norm(cel(R, r, c)); if (t === "NOME" || t === "FUNCIONARIO") nC = c; if (t === "TOTAL" || t === "VALORES") tC = c; }
+    if (nC != null && tC != null) { hdr = r; nameCol = nC; totCol = tC; break; }
+  }
+  if (hdr == null) throw new Error("não achei as colunas 'NOME' e 'TOTAL' no Resumo.");
+  const pessoas = [], semNome = []; let somaTodos = 0;
+  for (let r = hdr + 1; r <= rg.e.r; r++) {
+    const nome = cel(R, r, nameCol), tot = toNum(cel(R, r, totCol)), vazio = (nome == null || String(nome).trim() === "");
+    if (/^(TOTAL|TOTALGERAL|GERAL|SOMA)$/.test(norm(nome))) break;
+    if (vazio && !isFinite(tot)) continue;
+    if (vazio) { if (isFinite(tot) && Math.abs(tot - somaTodos) < 1) break; semNome.push({ row: r + 1, total: isFinite(tot) ? tot : 0 }); if (isFinite(tot)) somaTodos += tot; continue; }
+    const t = isFinite(tot) ? tot : 0; pessoas.push({ nome: String(nome).trim(), total: t, row: r + 1 }); somaTodos += t;
+  }
+  // total da planilha individual = linha de totais da coluna TOTAL (onde MEDIÇÃO e TOTAL
+  // batem com a soma das linhas acima). Ignora tabelas auxiliares abaixo.
+  const totalInd = sheetName => {
+    const ws = wb.Sheets[sheetName]; if (!ws || !ws["!ref"]) return null;
+    const g = XLSX.utils.decode_range(ws["!ref"]);
+    let hr = null, totC = null, medC = null;
+    for (let r = g.s.r; r <= Math.min(g.s.r + 10, g.e.r); r++) { for (let c = g.s.c; c <= g.e.c; c++) { const t = norm(cel(ws, r, c)); if (t === "TOTAL" && totC == null) { hr = r; totC = c; } if (t === "MEDICAO") medC = c; } if (totC != null) break; }
+    if (totC == null) return null;
+    let runR = 0, runP = 0, n = 0;
+    for (let r = hr + 1; r <= g.e.r; r++) {
+      const rv = toNum(cel(ws, r, totC)), pv = medC != null ? toNum(cel(ws, r, medC)) : NaN;
+      if (!isFinite(rv) && !isFinite(pv)) continue;
+      const matchR = isFinite(rv) && runR > 0.009 && Math.abs(rv - runR) < 0.01;
+      const matchP = medC == null ? true : (isFinite(pv) && Math.abs(pv - runP) < 0.01);
+      if (n >= 1 && matchR && matchP) return isFinite(rv) ? rv : runR;
+      if (isFinite(rv)) runR += rv; if (isFinite(pv)) runP += pv; n++;
+    }
+    return runR;
+  };
+  const byName = {}; for (const n of names) if (!naoPessoa(n)) byName[norm(n)] = n;
+  const matches = [], divergencias = [], semAba = [];
+  for (const p of pessoas) {
+    const sn = byName[norm(p.nome)];
+    if (!sn) { semAba.push(p); continue; }
+    const ti = totalInd(sn);
+    if (ti == null) { divergencias.push(Object.assign({}, p, { individual: null, dif: null, nota: "sem total na aba" })); continue; }
+    const dif = p.total - ti;
+    if (Math.abs(dif) < 0.01) matches.push(Object.assign({}, p, { individual: ti }));
+    else divergencias.push(Object.assign({}, p, { individual: ti, dif }));
+  }
+  const nomesResumo = new Set(pessoas.map(p => norm(p.nome)));
+  const abasOrfas = names.filter(n => !naoPessoa(n) && !nomesResumo.has(norm(n)));
+  return { resumoName, total: pessoas.length, matches, divergencias, semNome, semAba, abasOrfas };
+}
+function confRelatorioHTML(r) {
+  const kpi = (l, v, cor) => `<div class="kpi"><p>${l}</p><b style="${cor ? "color:" + cor : ""}">${v}</b></div>`;
+  let h = `<div class="kpis" style="margin-top:12px">
+    ${kpi("Conferem", r.matches.length, "var(--ac)")}
+    ${kpi("Divergem", r.divergencias.length, r.divergencias.length ? "var(--er-tx)" : "")}
+    ${kpi("Sem nome", r.semNome.length, r.semNome.length ? "var(--wa-tx)" : "")}
+    ${kpi("Fora do resumo", r.abasOrfas.length, "")}
+  </div>`;
+  if (r.divergencias.length) {
+    h += `<p class="sec-t">Divergências</p><div class="card" style="padding:0;overflow-x:auto"><table class="mats" style="margin:0"><thead><tr><td style="padding-left:12px">Funcionário</td><td>Resumo</td><td>Individual</td><td>Diferença</td></tr></thead><tbody>`;
+    for (const d of r.divergencias) h += `<tr><td style="padding-left:12px">${esc(d.nome)}</td><td>${money(d.total)}</td><td>${d.individual == null ? "—" : money(d.individual)}</td><td style="color:var(--er-tx)">${d.dif == null ? esc(d.nota || "") : money(d.dif)}</td></tr>`;
+    h += `</tbody></table></div>`;
+  } else h += `<div class="card" style="margin-top:12px"><b style="color:var(--ac)">Tudo bate.</b><p class="mut" style="font-size:13px;margin:4px 0 0">Nenhuma divergência entre o Resumo e as planilhas individuais.</p></div>`;
+  const lista = (titulo, arr, fn) => arr.length ? `<p class="sec-t">${titulo} (${arr.length})</p><div class="card"><p class="mut" style="font-size:13px;margin:0;line-height:1.7">${arr.map(fn).join(" · ")}</p></div>` : "";
+  h += lista("Linhas sem nome no Resumo", r.semNome, s => "linha " + s.row + " (" + money(s.total) + ")");
+  h += lista("No Resumo, sem planilha individual", r.semAba, p => esc(p.nome));
+  h += lista("Planilhas sem linha no Resumo", r.abasOrfas, esc);
+  h += `<div style="margin-top:14px"><button class="btn sec sm" data-act="confExport" style="width:auto">Exportar relatório (CSV)</button></div>`;
+  return h;
+}
+function vConferencia() {
+  topo("Conferência de medição", "");
+  let corpo = `<div class="card">
+    <p class="mut" style="font-size:13px;margin:0 0 10px">Envie o Excel da medição. O app confere, para cada funcionário, se o valor do <b>Resumo</b> bate com o total da <b>planilha individual</b>.</p>
+    <button class="btn sm" data-act="confUpload" style="width:auto" ${confBusy ? "disabled" : ""}>${confBusy ? "Lendo…" : "Escolher arquivo .xlsx"}</button>
+    ${confArq ? `<p class="mut" style="font-size:12px;margin:8px 0 0">Arquivo: ${esc(confArq)}</p>` : ""}
+    ${confErro ? `<p class="err" style="display:block;margin-top:8px">${esc(confErro)}</p>` : ""}
+  </div>`;
+  if (confRes) corpo += confRelatorioHTML(confRes);
+  document.getElementById("main").innerHTML = voltarMais() + corpo;
+}
+
 const voltarMais = () => `<button class="btn sec sm voltar" data-act="irTela" data-tela="mais">← Mais</button>`;
 function vMais() {
   topo("Mais", "");
@@ -1004,6 +1111,7 @@ function vMais() {
     <p class="sec-t" style="margin-top:0">Cadastros e visões</p>
     <div class="rows">
       ${item("descontos", "Descontos", "Adiantamentos e valores a descontar")}
+      ${item("conferencia", "Conferência de medição", "Confere o Excel: Resumo × planilhas individuais")}
       ${item("rastreabilidade", "Rastreabilidade", "Documentação do concreto por casa")}
       ${item("mapa", "Mapa de serviços", "Situação de cada casa")}
       ${item("modulos", "Módulos", "Casas, tipos e fileiras")}
@@ -1418,6 +1526,18 @@ document.addEventListener("click", e => {
       S.houses.forEach(h => { if (modChecks.has(h.id)) h.group_id = grupo ? Number(grupo) : null; });
       modChecks = new Set(); salvar(); return render();
     }
+    case "confUpload": return document.getElementById("fileConf").click();
+    case "confExport": {
+      if (!confRes) return;
+      const r = confRes, L = [["Status", "Funcionario", "Resumo", "Individual", "Diferenca"]];
+      for (const m of r.matches) L.push(["bate", m.nome, m.total, m.individual, 0]);
+      for (const d of r.divergencias) L.push(["DIVERGE", d.nome, d.total, d.individual == null ? "" : d.individual, d.dif == null ? (d.nota || "") : d.dif]);
+      for (const p of r.semAba) L.push(["sem planilha individual", p.nome, p.total, "", ""]);
+      for (const s of r.semNome) L.push(["linha sem nome", "(linha " + s.row + ")", s.total, "", ""]);
+      for (const n of r.abasOrfas) L.push(["planilha fora do resumo", n, "", "", ""]);
+      const csv = L.map(l => l.map(x => { const s = String(x).replace(/"/g, '""'); return /[";\n]/.test(s) ? '"' + s + '"' : s; }).join(";")).join("\r\n");
+      return baixar("conferencia-medicao.csv", "﻿" + csv, "text/csv;charset=utf-8");
+    }
     case "importarDesc": return document.getElementById("fileDesc").click();
     case "confirmarImportDesc": {
       if (descImport && descImport.length) { for (const r of descImport) S.debts.push({ id: nextId("debts"), team_id: r.team_id, description: r.description, total_amount: r.total_amount, installments: 1, notes: null, created_at: agoraSql() }); salvar(); }
@@ -1491,6 +1611,15 @@ document.addEventListener("change", e => {
   if (e.target.id === "rastMod") { rastMod = e.target.value; return render(); }
   if (e.target.id === "rastNota") { rastSoNota = e.target.checked; return render(); }
   if (e.target.id === "mapMod") { mapMod = e.target.value; return render(); }
+  if (e.target.id === "fileConf" && e.target.files.length) {
+    const f = e.target.files[0]; e.target.value = "";
+    confArq = f.name; confErro = ""; confRes = null; confBusy = true; render();
+    carregarXLSX().then(() => f.arrayBuffer()).then(buf => {
+      const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
+      confRes = conferirMedicao(wb); confBusy = false; render();
+    }).catch(err => { confBusy = false; confErro = err.message || "não consegui ler o arquivo."; render(); });
+    return;
+  }
   if (e.target.id === "fileDesc" && e.target.files.length) {
     const fr = new FileReader();
     fr.onload = () => { const res = processarCsvDescontos(fr.result); if (res.erro) return alert(res.erro); previewImportDesc(res); };

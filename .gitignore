@@ -7,3 +7,7 @@ obra-*.json
 node_modules/
 .DS_Store
 *.log
+
+# planilhas de medição nunca vão no repo (dados de salário)
+*.xlsx
+*.xls
