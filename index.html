@@ -127,7 +127,8 @@ table.grade td.cel.pago{background:var(--ok-bg);color:var(--ok-tx)}
 table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
 @media (min-width:900px){
   .app{grid-template-columns:220px 1fr}
-  aside{display:flex;flex-direction:column;gap:4px;padding:18px 12px;border-right:1px solid var(--line);background:var(--card);position:sticky;top:0;height:100vh}
+  aside{display:flex;flex-direction:column;gap:4px;padding:18px 12px;border-right:1px solid var(--line);background:var(--card);position:sticky;top:0;height:100vh;overflow-y:auto}
+  aside .navsec{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);padding:14px 12px 4px;font-weight:600}
   aside .brand{padding:4px 10px 16px}
   aside .brand h1{font-size:17px;line-height:1.2}
   aside .brand p{margin:2px 0 0;font-size:12px;color:var(--tx3)}
@@ -151,7 +152,15 @@ table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
     <button class="tab" data-tab="contratos"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9 12h7M9 16h7"/></svg> Contratos</button>
     <button class="tab" data-tab="medicoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> Medições</button>
     <button class="tab" data-tab="relatorios"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20v-7M12 20V5M18 20v-10"/></svg> Relatórios</button>
-    <button class="tab" data-tab="mais"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Mais</button>
+    <div class="navsec">Cadastros e visões</div>
+    <button class="tab" data-tab="descontos"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M5 10v4M19 10v4"/></svg> Descontos</button>
+    <button class="tab" data-tab="conferencia"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 13l2.5 2.5 4.5-5"/></svg> Conferência</button>
+    <button class="tab" data-tab="rastreabilidade"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9.5A1 1 0 0 0 5.4 20h13.2a1 1 0 0 0 .9-1.5L14 9V3"/><path d="M7 15h10"/></svg> Rastreabilidade</button>
+    <button class="tab" data-tab="mapa"><svg viewBox="0 0 24 24"><path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3z"/><path d="M9 4v13M15 7v13"/></svg> Mapa de serviços</button>
+    <button class="tab" data-tab="modulos"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-7h6v7"/></svg> Módulos</button>
+    <button class="tab" data-tab="catalogo"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg> Catálogo</button>
+    <div class="navsec">Sistema</div>
+    <button class="tab" data-tab="mais"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9.5 3.5 3.5 0 0 1 17.5 18z"/></svg> Nuvem e backup</button>
   </aside>
   <div class="col">
     <header>
@@ -441,7 +450,11 @@ function ir(t) { tela = t; sel = null; render(); }
 const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia"];
 function render() {
   const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
-  document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-current", b.dataset.tab === grupo && !sel ? "page" : "false"));
+  document.querySelectorAll("[data-tab]").forEach(b => {
+    const d = b.dataset.tab, naBarra = !b.closest("aside");
+    const ativo = !sel && (d === tela || (naBarra && d === grupo));
+    b.setAttribute("aria-current", ativo ? "page" : "false");
+  });
   const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia };
   if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
   (V[tela] || vPainel)();
