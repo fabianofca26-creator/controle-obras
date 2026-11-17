@@ -11,3 +11,4 @@ node_modules/
 # planilhas de medição nunca vão no repo (dados de salário)
 *.xlsx
 *.xls
+*.pdf
