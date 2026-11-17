@@ -713,6 +713,7 @@ function vServico() {
         <div style="text-align:right"><span class="mut" style="font-size:12px">Saldo do serviço</span><br><b>${money(saldoTotal)}</b></div>
       </div>
       <button class="btn sm" style="margin-top:12px" data-act="bulk" data-id="${s.id}">Lançar em várias casas</button>
+      <div class="acts" style="margin-top:8px"><button class="btn sec sm" data-act="editarValoresServico" data-id="${s.id}">Editar valores</button><button class="btn sec sm" data-act="ajustarCasasServico" data-id="${s.id}">Ajustar casas</button><button class="btn er sm" data-act="excluirServico" data-id="${s.id}">Excluir</button></div>
     </div>
     ${filtro}
     <div class="rows">${linhas || '<div class="row"><span class="mut">Nenhuma casa com esse empreiteiro.</span></div>'}</div>`;
@@ -728,7 +729,7 @@ function abrirLancamento(shId) {
   const seqMap = {}; medicoesDoContrato(s.contract_id).forEach(m => seqMap[m.id] = m.seq);
   const hist = entriesDe(shId).map(e => {
     const m = S.measurements.find(x => x.id === e.measurement_id) || {}, tm = IDX.team.get(m.team_id) || {}, seq = seqMap[e.measurement_id];
-    return `<tr><td>${seq ? "<b>Nº" + seq + "</b> · " : ""}${esc(tm.name || "")} — ${fmtDate(m.date)}</td><td>${money(e.value_paid)}</td><td><button class="icobtn" data-act="rmLanc" data-id="${e.id}" title="Excluir">✕</button></td></tr>`;
+    return `<tr><td>${seq ? "<b>Nº" + seq + "</b> · " : ""}${esc(tm.name || "")} — ${fmtDate(m.date)}</td><td>${money(e.value_paid)}</td><td style="white-space:nowrap"><button class="icobtn" data-act="editarLanc" data-id="${e.id}" title="Editar">✎</button> <button class="icobtn" data-act="rmLanc" data-id="${e.id}" title="Excluir">✕</button></td></tr>`;
   }).join("");
   const teams = S.teams.filter(t => t.active).sort((a, b) => a.name.localeCompare(b.name));
   const dlg = document.getElementById("dlg");
@@ -909,8 +910,8 @@ function vMedicoes() {
     if (aberto) {
       const ents = entradasDaMedicao(m.id);
       det = `<div style="padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line)">${ents.length
-        ? `<table class="mats">${ents.map(e => `<tr><td>${esc(e.contrato)}<br><small class="mut">${esc(e.servico)} · ${esc(e.casa)}</small></td><td>${money(e.valor)}</td><td><button class="icobtn" data-act="rmLancM" data-id="${e.id}" title="Excluir">✕</button></td></tr>`).join("")}</table>`
-        : `<p class="mut" style="margin:0 0 8px">Sem lançamentos.</p><button class="btn er sm" data-act="rmMedicao" data-id="${m.id}">Excluir medição</button>`}</div>`;
+        ? `<table class="mats">${ents.map(e => `<tr><td>${esc(e.contrato)}<br><small class="mut">${esc(e.servico)} · ${esc(e.casa)}</small></td><td>${money(e.valor)}</td><td><button class="icobtn" data-act="rmLancM" data-id="${e.id}" title="Excluir">✕</button></td></tr>`).join("")}</table><div class="acts" style="margin-top:8px"><button class="btn sec sm" data-act="editarMedicao" data-id="${m.id}">Editar medição</button></div>`
+        : `<p class="mut" style="margin:0 0 8px">Sem lançamentos.</p><div class="acts"><button class="btn sec sm" data-act="editarMedicao" data-id="${m.id}">Editar</button><button class="btn er sm" data-act="rmMedicao" data-id="${m.id}">Excluir medição</button></div>`}</div>`;
     }
     return `<button class="row" data-act="medExp" data-id="${m.id}" aria-current="${aberto}"><div class="g"><b>${esc(t.name || "—")}</b><small>${fmtDate(m.date)} · ${cnt.get(m.id) || 0} lançamento(s)</small></div><span class="v">${money(tot.get(m.id) || 0)}</span></button>${det}`;
   }).join("");
@@ -1184,14 +1185,14 @@ function vModulos() {
       const nc = S.houses.filter(h => h.module_id === m.id).length, nf = S.house_groups.filter(g => g.module_id === m.id).length;
       return `<button class="row" data-act="verModulo" data-id="${m.id}"><div class="g"><b>${esc(m.name)}</b><small>${nc} casas · ${nf} fileiras</small></div><span class="mut">›</span></button>`;
     }).join("");
-    document.getElementById("main").innerHTML = voltarMais() + `<div class="rows" style="margin-top:8px">${rows || '<div class="row"><span class="mut">Nenhum módulo.</span></div>'}</div>`;
+    document.getElementById("main").innerHTML = voltarMais() + `<button class="btn sm" data-act="novoModulo" style="margin:8px 0;width:auto">+ Novo módulo</button><div class="rows">${rows || '<div class="row"><span class="mut">Nenhum módulo.</span></div>'}</div>`;
     return;
   }
   const m = IDX.module.get(modSel); if (!m) { modSel = null; return vModulos(); }
   const fileiras = S.house_groups.filter(g => g.module_id === m.id).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   const casas = casasDoModulo(m.id);
   topo(m.name, casas.length + " casas");
-  const chipsFil = fileiras.map(g => `<span class="tag in" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0">${esc(g.name)} <button class="icobtn" data-act="rmFileira" data-id="${g.id}" style="padding:0 3px">✕</button></span>`).join("");
+  const chipsFil = fileiras.map(g => `<span class="tag in" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0">${esc(g.name)} <button class="icobtn" data-act="renomearFileira" data-id="${g.id}" style="padding:0 3px" title="Renomear">✎</button><button class="icobtn" data-act="rmFileira" data-id="${g.id}" style="padding:0 3px" title="Remover">✕</button></span>`).join("");
   const optFil = `<option value="">Sem fileira</option>${fileiras.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join("")}`;
   let linhas = "", grupo = null;
   for (const h of casas) {
@@ -1199,7 +1200,9 @@ function vModulos() {
     if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
     linhas += `<div class="row" style="cursor:default"><input type="checkbox" data-act="modCheck" data-id="${h.id}" ${modChecks.has(h.id) ? "checked" : ""} style="margin-right:4px">
       <div class="g"><b>${esc(h.name)} <span class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</span></b></div>
-      <button class="btn sec sm" data-act="renomearCasa" data-id="${h.id}">✎</button></div>`;
+      <button class="btn sec sm" data-act="trocarTipo" data-id="${h.id}" title="Trocar T1/T2">T1/T2</button>
+      <button class="btn sec sm" data-act="renomearCasa" data-id="${h.id}" title="Renomear">✎</button>
+      <button class="btn er sm" data-act="excluirCasa" data-id="${h.id}" title="Excluir">✕</button></div>`;
   }
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarModulos">← Módulos</button>
     <p class="sec-t">Fileiras</p><div>${chipsFil || '<span class="mut">Nenhuma.</span>'}</div>
@@ -1209,11 +1212,87 @@ function vModulos() {
       <div style="display:flex;gap:8px;margin-top:8px"><select id="novoTipo"><option value="tipo_1">Tipo 1</option><option value="tipo_2">Tipo 2</option></select><select id="novoGrupo">${optFil}</select><button class="btn sm" data-act="addCasas" data-id="${m.id}">Adicionar</button></div></div>
     <p class="sec-t">Casas ${modChecks.size ? `· ${modChecks.size} marcada(s)` : ""}</p>
     ${modChecks.size ? `<div class="row" style="cursor:default;gap:8px;margin-bottom:6px"><select id="moverGrupo">${optFil}</select><button class="btn sm" data-act="moverCasas">Mover marcadas</button></div>` : ""}
-    <div class="rows">${linhas}</div>`;
+    <div class="rows">${linhas}</div>
+    <div style="margin-top:18px;text-align:center"><button class="btn er sm" data-act="excluirModulo" data-id="${m.id}" style="width:auto">Excluir módulo</button></div>`;
 }
 function formRenomearCasa(hid) {
   const h = IDX.house.get(hid), dlg = document.getElementById("dlg");
   dlg.innerHTML = `<div class="dbody"><h2>Renomear casa</h2><div class="field" style="margin-top:8px"><input id="rcVal" value="${esc(h.name)}"></div><div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarRenomearCasa" data-id="${hid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+// ---------- edições (serviço, módulo, lançamento, medição, desconto) ----------
+const temLancamentoServico = sid => S.entries.some(e => { const sh = IDX.sh.get(e.service_house_id); return sh && sh.service_id === sid; });
+function formEditarValoresServico(sid) {
+  const s = IDX.service.get(sid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Editar valores do serviço</h2>${temLancamentoServico(sid)
+    ? `<p class="err" style="display:block">Este serviço já tem lançamentos — o valor não pode ser alterado (exclua os lançamentos primeiro).</p><div class="dacts"><button class="btn" data-act="fecharDlg">Fechar</button></div>`
+    : `<div style="display:flex;gap:10px;margin-top:8px"><div class="field" style="flex:1"><label>Valor Tipo 1</label><input type="number" step="0.01" id="evV1" value="${s.unit_value_type1}"></div><div class="field" style="flex:1"><label>Valor Tipo 2</label><input type="number" step="0.01" id="evV2" value="${s.unit_value_type2}"></div></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarValoresServico" data-id="${sid}">Salvar</button></div>`}</div>`;
+  dlg.showModal();
+}
+function abrirAjustarCasasServico(sid) {
+  const s = IDX.service.get(sid), casas = casasDoContrato(s.contract_id);
+  const noServico = new Set(S.service_house.filter(sh => sh.service_id === sid).map(sh => sh.house_id));
+  const travadas = new Set();
+  for (const e of S.entries) { const sh = IDX.sh.get(e.service_house_id); if (sh && sh.service_id === sid) travadas.add(sh.house_id); }
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h);
+    if (g !== grupo) { grupo = g; linhas += `<tr><td colspan="2" class="filsub"><label style="margin:0;display:flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" data-filgrp="${esc(g)}"> ${esc(g)}</label></td></tr>`; }
+    const trav = travadas.has(h.id), marc = noServico.has(h.id) || trav;
+    linhas += `<tr data-grp="${esc(g)}"><td><input type="checkbox" class="bchk" data-house="${h.id}" ${marc ? "checked" : ""} ${trav ? "disabled" : ""}></td><td>${esc(h.name)} <small class="mut">${h.type === "tipo_1" ? "T1" : "T2"}</small>${trav ? ' <span class="tag mut">com lançamento</span>' : ""}</td></tr>`;
+  }
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Casas do serviço</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 6px">${esc((IDX.catalog.get(s.catalog_service_id) || {}).name || "")}. Marque onde este serviço se aplica. Casas com lançamento não saem.</p>
+    <div class="matswrap"><table class="mats"><thead><tr><td></td><td>Casa</td></tr></thead><tbody>${linhas}</tbody></table></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarCasasServico" data-id="${sid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function formNovoModulo() {
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Novo módulo</h2><div class="field" style="margin-top:8px"><label>Nome</label><input id="nmdNome" placeholder="ex: Alvorada 4 Módulo 1"></div>
+    <p class="err" id="nmdErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarNovoModulo">Criar</button></div></div>`;
+  dlg.showModal();
+}
+function formRenomearFileira(gid) {
+  const g = IDX.group.get(gid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Renomear fileira</h2><div class="field" style="margin-top:8px"><input id="rfVal" value="${esc(g.name)}"></div><div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarRenomearFileira" data-id="${gid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function formEditarLanc(eid) {
+  const e = S.entries.find(x => x.id === eid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Editar lançamento</h2><div class="field" style="margin-top:8px"><label>Valor pago</label><input type="number" step="0.01" id="elVal" value="${e.value_paid}"></div>
+    <p class="err" id="elErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarEditarLanc" data-id="${eid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function formEditarMedicao(mid) {
+  const m = S.measurements.find(x => x.id === mid), teams = S.teams.filter(t => t.active || t.id === m.team_id).sort((a, b) => a.name.localeCompare(b.name)), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Editar medição</h2>
+    <div class="field" style="margin-top:8px"><label>Empreiteiro</label><select id="emTeam">${teams.map(t => `<option value="${t.id}" ${t.id === m.team_id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Data</label><input type="date" id="emData" value="${m.date}"></div>
+    <div class="field"><label>Anotações</label><input id="emNota" value="${esc(m.notes || "")}"></div>
+    <p class="err" id="emErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarEditarMedicao" data-id="${mid}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function formEditarDesconto(did) {
+  const d = S.debts.find(x => x.id === did), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Editar desconto</h2>
+    <div class="field" style="margin-top:8px"><label>Descrição</label><input id="edDesc" value="${esc(d.description)}"></div>
+    <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Valor total</label><input type="number" step="0.01" id="edTotal" value="${d.total_amount}"></div><div class="field" style="flex:1"><label>Parcelas</label><input type="number" min="1" id="edParc" value="${d.installments}"></div></div>
+    <div class="field"><label>Anotação</label><input id="edNota" value="${esc(d.notes || "")}"></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarEditarDesconto" data-id="${did}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function formEditarPag(pid) {
+  const p = S.debt_payments.find(x => x.id === pid), dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Editar pagamento</h2>
+    <div style="display:flex;gap:10px;margin-top:8px"><div class="field" style="flex:1"><label>Valor</label><input type="number" step="0.01" id="epVal" value="${p.amount}"></div><div class="field" style="flex:1"><label>Data</label><input type="date" id="epData" value="${p.date}"></div></div>
+    <div class="field"><label>Anotação</label><input id="epNota" value="${esc(p.notes || "")}"></div>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarEditarPag" data-id="${pid}">Salvar</button></div></div>`;
   dlg.showModal();
 }
 
@@ -1281,8 +1360,8 @@ function debtRow(x) {
   if (aberto) {
     const pags = S.debt_payments.filter(p => p.debt_id === d.id).sort((a, b) => a.date < b.date ? -1 : 1);
     det = `<div style="padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line)">
-      ${pags.length ? `<table class="mats">${pags.map(p => `<tr><td>${fmtDate(p.date)}${p.notes ? '<br><small class="mut">' + esc(p.notes) + '</small>' : ''}</td><td>${money(p.amount)}</td><td><button class="icobtn" data-act="rmPag" data-id="${p.id}">✕</button></td></tr>`).join("")}</table>` : '<p class="mut" style="margin:0 0 8px">Sem pagamentos.</p>'}
-      <div class="acts" style="margin-top:8px"><button class="btn sm" data-act="novoPag" data-id="${d.id}">Registrar pagamento</button><button class="btn er sm" data-act="rmDebt" data-id="${d.id}">Excluir desconto</button></div></div>`;
+      ${pags.length ? `<table class="mats">${pags.map(p => `<tr><td>${fmtDate(p.date)}${p.notes ? '<br><small class="mut">' + esc(p.notes) + '</small>' : ''}</td><td>${money(p.amount)}</td><td style="white-space:nowrap"><button class="icobtn" data-act="editarPag" data-id="${p.id}" title="Editar">✎</button> <button class="icobtn" data-act="rmPag" data-id="${p.id}" title="Excluir">✕</button></td></tr>`).join("")}</table>` : '<p class="mut" style="margin:0 0 8px">Sem pagamentos.</p>'}
+      <div class="acts" style="margin-top:8px"><button class="btn sm" data-act="novoPag" data-id="${d.id}">Registrar pagamento</button><button class="btn sec sm" data-act="editarDesconto" data-id="${d.id}">Editar</button><button class="btn er sm" data-act="rmDebt" data-id="${d.id}">Excluir desconto</button></div></div>`;
   }
   return `<button class="row" data-act="descExp" data-id="${d.id}" aria-current="${aberto}"><div class="g"><b>${x.quitado ? "✓ " : ""}${esc(d.description)}</b><small>${d.installments}x · total ${money(d.total_amount)} · pago ${money(x.pago)}</small></div><span class="v">${money(x.saldo)}</span></button>${det}`;
 }
@@ -1530,6 +1609,92 @@ document.addEventListener("click", e => {
     case "modCheck": if (modChecks.has(id)) modChecks.delete(id); else modChecks.add(id); return render();
     case "renomearCasa": return formRenomearCasa(id);
     case "salvarRenomearCasa": { const h = IDX.house.get(id), nome = document.getElementById("rcVal").value.trim(); if (nome) { h.name = nome; salvar(); } dlg.close(); return render(); }
+    case "editarValoresServico": return formEditarValoresServico(id);
+    case "salvarValoresServico": {
+      const s = IDX.service.get(id); if (!s || temLancamentoServico(id)) { dlg.close(); return render(); }
+      s.unit_value_type1 = Number(document.getElementById("evV1").value) || 0; s.unit_value_type2 = Number(document.getElementById("evV2").value) || 0;
+      indexar(); recomputarStatus(s.contract_id); persistir(); dlg.close(); return render();
+    }
+    case "ajustarCasasServico": return abrirAjustarCasasServico(id);
+    case "salvarCasasServico": {
+      const sid = id, s = IDX.service.get(sid), travadas = new Set();
+      for (const en of S.entries) { const sh = IDX.sh.get(en.service_house_id); if (sh && sh.service_id === sid) travadas.add(sh.house_id); }
+      const req = [...dlg.querySelectorAll(".bchk:checked")].map(x => Number(x.dataset.house)), finalSet = new Set([...req, ...travadas]);
+      S.service_house = S.service_house.filter(sh => sh.service_id !== sid || finalSet.has(sh.house_id));
+      const ja = new Set(S.service_house.filter(sh => sh.service_id === sid).map(sh => sh.house_id));
+      let shId = nextId("service_house");
+      for (const hid of finalSet) if (!ja.has(hid)) S.service_house.push({ id: shId++, service_id: sid, house_id: hid, completed: 0 });
+      indexar(); recomputarStatus(s.contract_id); persistir(); dlg.close(); return render();
+    }
+    case "excluirServico": {
+      const s = IDX.service.get(id); if (!s) return;
+      if (temLancamentoServico(id)) return alert("Não é possível excluir: este serviço já tem lançamentos.");
+      if (!confirm("Excluir este serviço do contrato?")) return;
+      S.service_house = S.service_house.filter(sh => sh.service_id !== id); S.services = S.services.filter(x => x.id !== id);
+      indexar(); recomputarStatus(s.contract_id); persistir(); subServico = null; return render();
+    }
+    case "novoModulo": return formNovoModulo();
+    case "salvarNovoModulo": {
+      const nome = document.getElementById("nmdNome").value.trim(), err = document.getElementById("nmdErr");
+      if (!nome) { err.textContent = "Informe o nome."; err.style.display = "block"; return; }
+      const mid = nextId("modules"); S.modules.push({ id: mid, name: nome }); salvar(); dlg.close(); modSel = mid; return render();
+    }
+    case "renomearFileira": return formRenomearFileira(id);
+    case "salvarRenomearFileira": { const g = IDX.group.get(id), nome = document.getElementById("rfVal").value.trim(); if (g && nome) { g.name = nome; salvar(); } dlg.close(); return render(); }
+    case "trocarTipo": {
+      const h = IDX.house.get(id); if (!h) return; h.type = h.type === "tipo_1" ? "tipo_2" : "tipo_1";
+      indexar(); for (const cid of new Set(S.contract_houses.filter(ch => ch.house_id === id).map(ch => ch.contract_id))) recomputarStatus(cid); persistir(); return render();
+    }
+    case "excluirCasa": {
+      const h = IDX.house.get(id); if (!h) return;
+      const shIds = new Set(S.service_house.filter(sh => sh.house_id === id).map(sh => sh.id));
+      if (S.entries.some(e => shIds.has(e.service_house_id))) return alert("Não é possível excluir: esta casa já tem lançamentos.");
+      if (!confirm("Excluir a casa " + h.name + "?")) return;
+      const cids = [...new Set(S.contract_houses.filter(ch => ch.house_id === id).map(ch => ch.contract_id))];
+      S.service_house = S.service_house.filter(sh => sh.house_id !== id); S.contract_houses = S.contract_houses.filter(ch => ch.house_id !== id);
+      S.house_docs = S.house_docs.filter(d => d.house_id !== id); S.houses = S.houses.filter(x => x.id !== id); modChecks.delete(id);
+      indexar(); for (const cid of cids) recomputarStatus(cid); persistir(); return render();
+    }
+    case "excluirModulo": {
+      const mid = id;
+      if (S.contracts.some(c => c.module_id === mid)) return alert("Não é possível excluir: há contratos neste módulo. Exclua os contratos primeiro.");
+      if (!confirm("Excluir este módulo e todas as casas dele?")) return;
+      const hids = new Set(S.houses.filter(h => h.module_id === mid).map(h => h.id));
+      S.house_docs = S.house_docs.filter(d => !hids.has(d.house_id)); S.service_house = S.service_house.filter(sh => !hids.has(sh.house_id));
+      S.contract_houses = S.contract_houses.filter(ch => !hids.has(ch.house_id)); S.houses = S.houses.filter(h => h.module_id !== mid);
+      S.house_groups = S.house_groups.filter(g => g.module_id !== mid); S.modules = S.modules.filter(m => m.id !== mid);
+      salvar(); modSel = null; return render();
+    }
+    case "editarLanc": return formEditarLanc(id);
+    case "salvarEditarLanc": {
+      const e = S.entries.find(x => x.id === id); if (!e) return;
+      const v = Number(document.getElementById("elVal").value), err = document.getElementById("elErr"), sh = IDX.sh.get(e.service_house_id);
+      try { checarSaldo(sh, v, id); } catch (ex) { err.textContent = ex.message; err.style.display = "block"; return; }
+      e.value_paid = v; const cid = IDX.service.get(sh.service_id).contract_id;
+      indexar(); recomputarStatus(cid); persistir(); dlg.close(); if (dlgSh) abrirLancamento(dlgSh); return render();
+    }
+    case "editarMedicao": return formEditarMedicao(id);
+    case "salvarEditarMedicao": {
+      const m = S.measurements.find(x => x.id === id); if (!m) return;
+      const team = Number(document.getElementById("emTeam").value), data = document.getElementById("emData").value, nota = document.getElementById("emNota").value.trim(), err = document.getElementById("emErr");
+      if (!team || !data) return;
+      if (S.measurements.some(x => x.id !== id && x.team_id === team && x.date === data)) { err.textContent = "Já existe uma medição desse empreiteiro nessa data."; err.style.display = "block"; return; }
+      m.team_id = team; m.date = data; m.notes = nota || null; salvar(); dlg.close(); return render();
+    }
+    case "editarDesconto": return formEditarDesconto(id);
+    case "salvarEditarDesconto": {
+      const d = S.debts.find(x => x.id === id); if (!d) return;
+      d.description = document.getElementById("edDesc").value.trim() || d.description;
+      d.total_amount = Number(document.getElementById("edTotal").value) || 0;
+      d.installments = Math.max(1, Number(document.getElementById("edParc").value) || 1);
+      d.notes = document.getElementById("edNota").value.trim() || null; salvar(); dlg.close(); return render();
+    }
+    case "editarPag": return formEditarPag(id);
+    case "salvarEditarPag": {
+      const p = S.debt_payments.find(x => x.id === id); if (!p) return;
+      p.amount = Number(document.getElementById("epVal").value) || 0; p.date = document.getElementById("epData").value || p.date;
+      p.notes = document.getElementById("epNota").value.trim() || null; salvar(); dlg.close(); return render();
+    }
     case "addFileira": {
       const nome = document.getElementById("novaFileira").value.trim(); if (!nome) return;
       const ord = Math.max(0, ...S.house_groups.filter(g => g.module_id === id).map(g => g.order_index || 0)) + 1;
