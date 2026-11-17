@@ -1050,11 +1050,19 @@ function conferirMedicao(wb) {
     if (vazio) { if (isFinite(tot) && Math.abs(tot - somaTodos) < 1) break; semNome.push({ row: r + 1, total: isFinite(tot) ? tot : 0 }); if (isFinite(tot)) somaTodos += tot; continue; }
     const t = isFinite(tot) ? tot : 0; pessoas.push({ nome: String(nome).trim(), total: t, row: r + 1 }); somaTodos += t;
   }
-  // total da planilha individual = linha de totais da coluna TOTAL (onde MEDIÇÃO e TOTAL
-  // batem com a soma das linhas acima). Ignora tabelas auxiliares abaixo.
+  // total da planilha individual = célula rotulada "VALOR TOTAL" (ex.: F32 = medição − descontos).
+  // É calculada INDEPENDENTE do R10 que o Resumo puxa (=INDIRECT(nome!R10)), então comparar o
+  // Resumo contra ela realmente acha erro — comparar contra o próprio R10 seria R10=R10 (inútil).
+  // Fallback: se não houver o rótulo, usa a linha de totais da coluna TOTAL.
   const totalInd = sheetName => {
     const ws = wb.Sheets[sheetName]; if (!ws || !ws["!ref"]) return null;
     const g = XLSX.utils.decode_range(ws["!ref"]);
+    for (let r = g.s.r; r <= g.e.r; r++) for (let c = g.s.c; c <= g.e.c; c++) {
+      if (norm(cel(ws, r, c)) === "VALORTOTAL") {
+        for (let cc = c + 1; cc <= g.e.c; cc++) { const n = toNum(cel(ws, r, cc)); if (isFinite(n)) return n; }
+      }
+    }
+    // fallback (sem rótulo "VALOR TOTAL"): linha de totais da coluna TOTAL
     let hr = null, totC = null, medC = null;
     for (let r = g.s.r; r <= Math.min(g.s.r + 10, g.e.r); r++) { for (let c = g.s.c; c <= g.e.c; c++) { const t = norm(cel(ws, r, c)); if (t === "TOTAL" && totC == null) { hr = r; totC = c; } if (t === "MEDICAO") medC = c; } if (totC != null) break; }
     if (totC == null) return null;
