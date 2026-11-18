@@ -1274,15 +1274,16 @@ function vVistoria() {
   topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
   const ctrl = `<div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
     <div class="vist-nav"><button class="btn sec sm" data-act="irTela" data-tela="agenda">Agenda</button><button class="btn sec sm" data-act="irTela" data-tela="vistrel">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="clientes">Clientes</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos">Categorias</button></div>`;
-  // alertas do módulo
-  const semCheck = casas.filter(h => !h.checklist_done_at).length;
+  // alertas do módulo: 1º vendida sem checklist (não está pronta), depois pronta sem vistoria agendada
   const temAgend = hid => S.agendamentos.some(a => a.house_id === hid);
-  const vendSemAgenda = casas.filter(h => h.vendida && !temAgend(h.id));
+  const linkCasas = hs => hs.map(h => `<span data-act="vistCasa" data-id="${h.id}" style="font-weight:600;text-decoration:underline;cursor:pointer">${esc(h.name)}</span>`).join(", ");
+  const vendSemCheck = casas.filter(h => h.vendida && !h.checklist_done_at);
+  const vendSemAgenda = casas.filter(h => h.vendida && h.checklist_done_at && !temAgend(h.id));
   let alertas = "";
-  if (semCheck || vendSemAgenda.length) {
+  if (vendSemCheck.length || vendSemAgenda.length) {
     alertas = `<div class="note wa" style="flex-direction:column;align-items:stretch">
-      ${semCheck ? `<div>⚠ <b>${semCheck}</b> casa(s) sem checklist concluído neste módulo.</div>` : ""}
-      ${vendSemAgenda.length ? `<div style="margin-top:${semCheck ? "6px" : "0"}">⚠ Vendidas sem vistoria agendada: ${vendSemAgenda.map(h => `<span data-act="vistCasa" data-id="${h.id}" style="font-weight:600;text-decoration:underline;cursor:pointer">${esc(h.name)}</span>`).join(", ")}</div>` : ""}
+      ${vendSemCheck.length ? `<div>⚠ Vendidas sem checklist concluído: ${linkCasas(vendSemCheck)}</div>` : ""}
+      ${vendSemAgenda.length ? `<div style="margin-top:${vendSemCheck.length ? "6px" : "0"}">⚠ Prontas sem vistoria agendada: ${linkCasas(vendSemAgenda)}</div>` : ""}
     </div>`;
   }
   // vendidas primeiro (prioridade), depois o resto na ordem natural
