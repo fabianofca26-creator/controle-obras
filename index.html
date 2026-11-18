@@ -459,7 +459,7 @@ function carregarDados(d) {
 
 // ---------- navegação / render ----------
 function ir(t) { tela = t; sel = null; render(); }
-const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia", "vistoria", "visttipos", "vistrel"];
+const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia", "vistoria", "visttipos", "vistrel", "clientes"];
 function render() {
   const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
   document.querySelectorAll("[data-tab]").forEach(b => {
@@ -467,7 +467,7 @@ function render() {
     const ativo = !sel && (d === tela || (naBarra && d === grupo));
     b.setAttribute("aria-current", ativo ? "page" : "false");
   });
-  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim, vistoria: vVistoria, visttipos: vVistTipos, vistrel: vVistRelatorio };
+  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim, vistoria: vVistoria, visttipos: vVistTipos, vistrel: vVistRelatorio, clientes: vClientes };
   if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
   (V[tela] || vPainel)();
 }
@@ -1249,16 +1249,18 @@ function vVistoria() {
   if (!vistMod && mods.length) vistMod = String(mods[0].id);
   const mid = Number(vistMod), casas = casasDoModulo(mid);
   topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
-  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="vistrel" style="width:auto">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
+  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="vistrel" style="width:auto">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="clientes" style="width:auto">Clientes</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
     <div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
-  let linhas = "", grupo = null;
-  for (const h of casas) {
-    const g = nomeGrupo(h); if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
-    const ps = pendDaCasa(h.id), ab = ps.filter(p => p.status !== "resolvida").length, re = ps.length - ab;
-    linhas += `<button class="row" data-act="vistCasa" data-id="${h.id}">
-      <div class="g"><b>${esc(h.name)}</b><small>${ab ? ab + " pendente(s)" : "sem pendências"}${re ? " · " + re + " resolvida(s)" : ""}</small></div>
-      <span class="tag ${ab ? "wa" : (ps.length ? "ok" : "mut")}">${ab || (ps.length ? "✓" : "—")}</span></button>`;
-  }
+  // vendidas primeiro (prioridade), depois o resto na ordem natural
+  const casasOrd = casas.slice().sort((a, b) => (b.vendida ? 1 : 0) - (a.vendida ? 1 : 0));
+  const linhaCasa = h => {
+    const ps = pendDaCasa(h.id), ab = ps.filter(p => p.status !== "resolvida").length, re = ps.length - ab, feito = h.checklist_done_at;
+    const cl = h.cliente_id ? (S.clientes.find(c => c.id === h.cliente_id) || {}).nome : "";
+    return `<button class="row" data-act="vistCasa" data-id="${h.id}" style="${h.vendida ? "background:var(--in-bg)" : ""}">
+      <div class="g"><b>${h.vendida ? "★ " : ""}${esc(h.name)}</b><small>${ab ? ab + " pendente(s)" : (ps.length ? "sem pendências abertas" : (feito ? "checklist ok" : "sem checklist"))}${re ? " · " + re + " resolvida(s)" : ""}${h.vendida ? " · vendida" + (cl ? " (" + esc(cl) + ")" : "") : ""}</small></div>
+      <span class="tag ${ab ? "wa" : (ps.length || feito ? "ok" : "mut")}">${ab || (ps.length || feito ? "✓" : "—")}</span></button>`;
+  };
+  const linhas = casasOrd.map(linhaCasa).join("");
   document.getElementById("main").innerHTML = ctrl + `<div class="rows">${linhas || '<div class="row"><span class="mut">Nenhuma casa.</span></div>'}</div>`;
 }
 function vVistoriaCasa() {
@@ -1282,7 +1284,17 @@ function vVistoriaCasa() {
       <div class="acts" style="margin-top:8px"><button class="btn sec sm" data-act="toggleResolvida" data-id="${p.id}">${resolvida ? "Reabrir" : "Marcar resolvida"}</button><button class="btn sec sm" data-act="editarPendencia" data-id="${p.id}">Editar</button><button class="btn er sm" data-act="rmPendencia" data-id="${p.id}">Excluir</button></div>
     </div>`;
   }).join("");
+  const clientes = S.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome));
+  const feito = h.checklist_done_at;
+  const cardVenda = `<div class="card">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="chip" data-act="togVendida" data-id="${h.id}" aria-pressed="${!!h.vendida}" style="${h.vendida ? "background:var(--in-bg);color:var(--in-tx);border-color:transparent" : ""}">${h.vendida ? "★ Vendida" : "Marcar vendida"}</button>
+      ${h.vendida ? `<select id="vistCliente" style="width:auto;flex:1;min-width:140px"><option value="">— cliente —</option>${clientes.map(cl => `<option value="${cl.id}" ${h.cliente_id == cl.id ? "selected" : ""}>${esc(cl.nome)}</option>`).join("")}</select>` : ""}
+    </div>
+    <button class="btn ${feito ? "sec" : ""} sm" data-act="togChecklist" data-id="${h.id}" style="width:auto;margin-top:10px">${feito ? "✓ Checklist concluído em " + fmtDate(String(feito).slice(0, 10)) + " — desfazer" : "Marcar checklist concluído"}</button>
+  </div>`;
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarVist">← Vistoria</button>
+    ${cardVenda}
     <button class="btn sm" data-act="novaPendencia" style="margin:4px 0 10px;width:auto">+ Nova pendência</button>
     ${filtros}${linhas || '<p class="mut">Sem pendências com esse filtro.</p>'}`;
   carregarFotos();
@@ -1319,6 +1331,25 @@ function vVistTipos() {
   }).join("");
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
     <div class="row" style="cursor:default;gap:8px;margin:8px 0"><input id="novaCat" placeholder="Nova categoria..."><button class="btn sm" data-act="addCat2">+</button></div>${corpo}`;
+}
+function vClientes() {
+  topo("Clientes", S.clientes.length + " cliente(s)");
+  const linhas = S.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(cl => {
+    const casa = S.houses.find(h => h.cliente_id === cl.id);
+    return `<div class="row" style="cursor:default"><div class="g"><b>${esc(cl.nome)}</b><small>${esc(cl.telefone || "sem telefone")}${casa ? " · casa " + esc(casa.name) : ""}</small></div><button class="btn sec sm" data-act="editarCliente" data-id="${cl.id}">✎</button><button class="btn er sm" data-act="rmCliente" data-id="${cl.id}">✕</button></div>`;
+  }).join("");
+  document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
+    <button class="btn sm" data-act="novoCliente" style="margin:8px 0;width:auto">+ Novo cliente</button>
+    <div class="rows">${linhas || '<div class="row"><span class="mut">Nenhum cliente.</span></div>'}</div>`;
+}
+function formCliente(cid) {
+  const c = cid ? S.clientes.find(x => x.id === cid) : null, dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>${cid ? "Editar" : "Novo"} cliente</h2>
+    <div class="field" style="margin-top:8px"><label>Nome</label><input id="clNome" value="${esc(c ? c.nome : "")}"></div>
+    <div class="field"><label>Telefone</label><input id="clTel" value="${esc(c ? c.telefone || "" : "")}" placeholder="(67) 99999-9999"></div>
+    <p class="err" id="clErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarCliente" data-id="${cid || ""}">Salvar</button></div></div>`;
+  dlg.showModal();
 }
 // fotos das pendências: blob comprimido no IndexedDB (db "obra_fotos"), registro em S.pendencia_fotos
 const fdb = {
@@ -2088,6 +2119,12 @@ document.addEventListener("click", e => {
     }
     case "toggleResolvida": { const p = S.pendencias.find(x => x.id === id); if (p) { if (p.status === "resolvida") { p.status = "pendente"; p.resolved_at = null; } else { p.status = "resolvida"; p.resolved_at = agoraSql(); } salvar(); } return render(); }
     case "rmPendencia": { if (!confirm("Excluir esta pendência?")) return; for (const f of fotosPend(id)) fdb.del(f.id).catch(() => { }); S.pendencia_fotos = S.pendencia_fotos.filter(f => f.pendencia_id !== id); S.pendencias = S.pendencias.filter(p => p.id !== id); salvar(); return render(); }
+    case "togVendida": { const h = IDX.house.get(id); if (h) { h.vendida = h.vendida ? 0 : 1; if (!h.vendida) h.cliente_id = null; salvar(); } return render(); }
+    case "togChecklist": { const h = IDX.house.get(id); if (h) { h.checklist_done_at = h.checklist_done_at ? null : agoraSql(); salvar(); } return render(); }
+    case "novoCliente": return formCliente(null);
+    case "editarCliente": return formCliente(id);
+    case "salvarCliente": { const nome = document.getElementById("clNome").value.trim(), tel = document.getElementById("clTel").value.trim(); if (!nome) { const el = document.getElementById("clErr"); el.textContent = "Informe o nome."; el.style.display = "block"; return; } if (id) { const c = S.clientes.find(x => x.id === id); Object.assign(c, { nome, telefone: tel || null }); } else S.clientes.push({ id: nextId("clientes"), nome, telefone: tel || null }); salvar(); dlg.close(); return render(); }
+    case "rmCliente": { const casa = S.houses.find(h => h.cliente_id === id); if (casa && !confirm("Este cliente está vinculado à casa " + casa.name + ". Excluir mesmo assim? (a casa fica sem cliente)")) return; S.houses.forEach(h => { if (h.cliente_id === id) h.cliente_id = null; }); S.clientes = S.clientes.filter(c => c.id !== id); salvar(); return render(); }
     case "addFoto": fotoPendId = id; return document.getElementById("fileFoto").click();
     case "verFoto": return verFoto(id);
     case "rmFoto": { if (!confirm("Excluir esta foto?")) return; return excluirFoto(id); }
@@ -2119,6 +2156,7 @@ document.addEventListener("change", e => {
   if (e.target.id === "vistMod") { vistMod = e.target.value; return render(); }
   if (e.target.id === "vistFCat") { vistFiltroCat = e.target.value; return render(); }
   if (e.target.id === "vistFSt") { vistFiltroStatus = e.target.value; return render(); }
+  if (e.target.id === "vistCliente") { const h = IDX.house.get(vistCasa); if (h) { h.cliente_id = Number(e.target.value) || null; salvar(); } return; }
   if (e.target.id === "peCat") { const tipos = S.vist_tipos.filter(t => t.categoria_id === Number(e.target.value)), sel = document.getElementById("peTipo"); if (sel) sel.innerHTML = '<option value="">—</option>' + tipos.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""); return; }
   if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
   if (e.target.id === "mfDe") { medDe = e.target.value; return render(); }
