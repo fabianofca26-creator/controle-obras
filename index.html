@@ -1366,9 +1366,12 @@ function vClientes() {
 }
 function formCliente(cid) {
   const c = cid ? S.clientes.find(x => x.id === cid) : null, dlg = document.getElementById("dlg");
+  const casas = S.houses.slice().sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; });
+  const casaAtual = cid ? S.houses.find(h => h.cliente_id === cid) : null;
   dlg.innerHTML = `<div class="dbody"><h2>${cid ? "Editar" : "Novo"} cliente</h2>
     <div class="field" style="margin-top:8px"><label>Nome</label><input id="clNome" value="${esc(c ? c.nome : "")}"></div>
     <div class="field"><label>Telefone</label><input id="clTel" value="${esc(c ? c.telefone || "" : "")}" placeholder="(67) 99999-9999"></div>
+    <div class="field"><label>Casa</label><select id="clCasa"><option value="">— sem casa —</option>${casas.map(h => { const dono = h.cliente_id && h.cliente_id !== cid; return `<option value="${h.id}" ${casaAtual && casaAtual.id === h.id ? "selected" : ""} ${dono ? "disabled" : ""}>${esc(h.name)}${dono ? " (já vinculada)" : ""}</option>`; }).join("")}</select></div>
     <p class="err" id="clErr" style="display:none"></p>
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarCliente" data-id="${cid || ""}">Salvar</button></div></div>`;
   dlg.showModal();
@@ -2199,7 +2202,7 @@ document.addEventListener("click", e => {
     case "togChecklist": { const h = IDX.house.get(id); if (h) { h.checklist_done_at = h.checklist_done_at ? null : agoraSql(); salvar(); } return render(); }
     case "novoCliente": return formCliente(null);
     case "editarCliente": return formCliente(id);
-    case "salvarCliente": { const nome = document.getElementById("clNome").value.trim(), tel = document.getElementById("clTel").value.trim(); if (!nome) { const el = document.getElementById("clErr"); el.textContent = "Informe o nome."; el.style.display = "block"; return; } if (id) { const c = S.clientes.find(x => x.id === id); Object.assign(c, { nome, telefone: tel || null }); } else S.clientes.push({ id: nextId("clientes"), nome, telefone: tel || null }); salvar(); dlg.close(); return render(); }
+    case "salvarCliente": { const nome = document.getElementById("clNome").value.trim(), tel = document.getElementById("clTel").value.trim(); if (!nome) { const el = document.getElementById("clErr"); el.textContent = "Informe o nome."; el.style.display = "block"; return; } let cli; if (id) { cli = S.clientes.find(x => x.id === id); Object.assign(cli, { nome, telefone: tel || null }); } else { cli = { id: nextId("clientes"), nome, telefone: tel || null }; S.clientes.push(cli); } const casaId = Number(document.getElementById("clCasa").value) || null; S.houses.forEach(h => { if (h.cliente_id === cli.id) h.cliente_id = null; }); if (casaId) { const h = IDX.house.get(casaId); if (h) h.cliente_id = cli.id; } salvar(); dlg.close(); return render(); }
     case "rmCliente": { const casa = S.houses.find(h => h.cliente_id === id); if (casa && !confirm("Este cliente está vinculado à casa " + casa.name + ". Excluir mesmo assim? (a casa fica sem cliente)")) return; S.houses.forEach(h => { if (h.cliente_id === id) h.cliente_id = null; }); S.clientes = S.clientes.filter(c => c.id !== id); salvar(); return render(); }
     case "agSelDia": agendaDia = t.dataset.d; return render();
     case "agMes": { const [y, m] = agendaMes.split("-").map(Number); const d = new Date(y, m - 1 + Number(t.dataset.d), 1); agendaMes = d.toISOString().slice(0, 7); agendaDia = null; return render(); }
