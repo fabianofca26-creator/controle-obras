@@ -1278,12 +1278,12 @@ function vVistoria() {
   const temAgend = hid => S.agendamentos.some(a => a.house_id === hid);
   const linkCasas = hs => hs.map(h => `<span data-act="vistCasa" data-id="${h.id}" style="font-weight:600;text-decoration:underline;cursor:pointer">${esc(h.name)}</span>`).join(", ");
   const vendSemCheck = casas.filter(h => h.vendida && !h.checklist_done_at);
-  const vendSemAgenda = casas.filter(h => h.vendida && h.checklist_done_at && !temAgend(h.id));
+  const vendSemAgenda = casas.filter(h => h.vendida && !temAgend(h.id));
   let alertas = "";
   if (vendSemCheck.length || vendSemAgenda.length) {
     alertas = `<div class="note wa" style="flex-direction:column;align-items:stretch">
       ${vendSemCheck.length ? `<div>⚠ Vendidas sem checklist concluído: ${linkCasas(vendSemCheck)}</div>` : ""}
-      ${vendSemAgenda.length ? `<div style="margin-top:${vendSemCheck.length ? "6px" : "0"}">⚠ Prontas sem vistoria agendada: ${linkCasas(vendSemAgenda)}</div>` : ""}
+      ${vendSemAgenda.length ? `<div style="margin-top:${vendSemCheck.length ? "6px" : "0"}">⚠ Vendidas sem vistoria agendada: ${linkCasas(vendSemAgenda)}</div>` : ""}
     </div>`;
   }
   // vendidas primeiro (prioridade), depois o resto na ordem natural
