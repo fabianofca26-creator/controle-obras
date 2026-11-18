@@ -153,6 +153,7 @@ table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
     <button class="tab" data-tab="medicoes"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> Medições</button>
     <button class="tab" data-tab="relatorios"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20v-7M12 20V5M18 20v-10"/></svg> Relatórios</button>
     <div class="navsec">Cadastros e visões</div>
+    <button class="tab" data-tab="vistoria"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg> Vistoria</button>
     <button class="tab" data-tab="descontos"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M5 10v4M19 10v4"/></svg> Descontos</button>
     <button class="tab" data-tab="conferencia"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 13l2.5 2.5 4.5-5"/></svg> Conferência</button>
     <button class="tab" data-tab="rastreabilidade"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9.5A1 1 0 0 0 5.4 20h13.2a1 1 0 0 0 .9-1.5L14 9V3"/><path d="M7 15h10"/></svg> Rastreabilidade</button>
@@ -193,7 +194,8 @@ const STATUS = { ativo: ["Ativo", "in"], desativado: ["Desativado", "mut"], conc
 // ---------- estado ----------
 const TABELAS = ["modules", "houses", "house_groups", "service_catalog", "teams", "contracts",
   "contract_houses", "services", "service_house", "measurements", "entries", "reservations",
-  "debts", "debt_payments", "house_docs"];
+  "debts", "debt_payments", "house_docs",
+  "vist_categorias", "vist_tipos", "pendencias", "pendencia_fotos", "clientes", "agendamentos"];
 function PADRAO() { const s = { config: {} }; TABELAS.forEach(t => s[t] = []); return s; }
 let S = PADRAO();
 let IDX = {};
@@ -448,7 +450,7 @@ function carregarDados(d) {
 
 // ---------- navegação / render ----------
 function ir(t) { tela = t; sel = null; render(); }
-const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia"];
+const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia", "vistoria", "visttipos"];
 function render() {
   const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
   document.querySelectorAll("[data-tab]").forEach(b => {
@@ -456,7 +458,7 @@ function render() {
     const ativo = !sel && (d === tela || (naBarra && d === grupo));
     b.setAttribute("aria-current", ativo ? "page" : "false");
   });
-  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim };
+  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim, vistoria: vVistoria, visttipos: vVistTipos };
   if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
   (V[tela] || vPainel)();
 }
@@ -1220,6 +1222,94 @@ function vImportBoletim() {
     <div class="dacts" style="justify-content:flex-start;margin-top:12px"><button class="btn" data-act="criarDoBoletim" style="width:auto">Criar contrato</button><button class="btn sec" data-act="bolCancelar" style="width:auto">Cancelar</button></div>`;
 }
 
+// ---------- Vistoria (pendências por casa) ----------
+let vistMod = "", vistCasa = null, vistFiltroCat = "", vistFiltroStatus = "";
+function seedVistoria() {
+  if (S.vist_categorias.length) return;
+  let id = nextId("vist_categorias");
+  for (const n of ["Piso", "Elétrica", "Hidráulica", "Pintura", "Alvenaria", "Esquadrias", "Outros"]) S.vist_categorias.push({ id: id++, name: n });
+  salvar();
+}
+const pendDaCasa = hid => S.pendencias.filter(p => p.house_id === hid);
+const nomeCat = id => (S.vist_categorias.find(c => c.id === id) || {}).name || "—";
+const nomeTipo = id => (S.vist_tipos.find(t => t.id === id) || {}).name || "";
+function vVistoria() {
+  seedVistoria();
+  if (vistCasa) return vVistoriaCasa();
+  const mods = S.modules.slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (!vistMod && mods.length) vistMod = String(mods[0].id);
+  const mid = Number(vistMod), casas = casasDoModulo(mid);
+  topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
+  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
+    <div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
+  let linhas = "", grupo = null;
+  for (const h of casas) {
+    const g = nomeGrupo(h); if (g !== grupo) { grupo = g; linhas += `<div class="filsub">${esc(g)}</div>`; }
+    const ps = pendDaCasa(h.id), ab = ps.filter(p => p.status !== "resolvida").length, re = ps.length - ab;
+    linhas += `<button class="row" data-act="vistCasa" data-id="${h.id}">
+      <div class="g"><b>${esc(h.name)}</b><small>${ab ? ab + " pendente(s)" : "sem pendências"}${re ? " · " + re + " resolvida(s)" : ""}</small></div>
+      <span class="tag ${ab ? "wa" : (ps.length ? "ok" : "mut")}">${ab || (ps.length ? "✓" : "—")}</span></button>`;
+  }
+  document.getElementById("main").innerHTML = ctrl + `<div class="rows">${linhas || '<div class="row"><span class="mut">Nenhuma casa.</span></div>'}</div>`;
+}
+function vVistoriaCasa() {
+  const h = IDX.house.get(vistCasa); if (!h) { vistCasa = null; return vVistoria(); }
+  topo("Vistoria · " + h.name, (IDX.module.get(h.module_id) || {}).name || "");
+  let ps = pendDaCasa(vistCasa);
+  if (vistFiltroCat) ps = ps.filter(p => String(p.categoria_id) === vistFiltroCat);
+  if (vistFiltroStatus) ps = ps.filter(p => p.status === vistFiltroStatus);
+  ps = ps.slice().sort((a, b) => (a.status === b.status ? 0 : a.status === "resolvida" ? 1 : -1) || (b.created_at || "").localeCompare(a.created_at || ""));
+  const cats = S.vist_categorias.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const filtros = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <select id="vistFCat" style="flex:1;min-width:130px"><option value="">Todas categorias</option>${cats.map(c => `<option value="${c.id}" ${vistFiltroCat == c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
+    <select id="vistFSt"><option value="">Todos status</option><option value="pendente" ${vistFiltroStatus === "pendente" ? "selected" : ""}>Pendentes</option><option value="resolvida" ${vistFiltroStatus === "resolvida" ? "selected" : ""}>Resolvidas</option></select></div>`;
+  const linhas = ps.map(p => {
+    const resolvida = p.status === "resolvida";
+    return `<div class="card" style="padding:10px 12px;border-left:3px solid ${resolvida ? "var(--ok-tx)" : "var(--wa-tx)"}">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${esc(nomeCat(p.categoria_id))}${p.local ? " · " + esc(p.local) : ""}</b><span class="tag ${resolvida ? "ok" : "wa"}">${resolvida ? "Resolvida" : "Pendente"}</span></div>
+      ${p.descricao ? `<p style="margin:4px 0 0;font-size:14px">${esc(p.descricao)}</p>` : ""}
+      <p class="mut" style="font-size:12px;margin:4px 0 0">${p.tipo_id ? "Tipo: " + esc(nomeTipo(p.tipo_id)) + " · " : ""}${p.quantidade != null ? "Qtd: " + p.quantidade + " · " : ""}${p.origem === "cliente" ? "Apontada pelo cliente" : "Vistoria interna"}${p.diagnostico ? " · " + esc(p.diagnostico) : ""}</p>
+      <div class="acts" style="margin-top:8px"><button class="btn sec sm" data-act="toggleResolvida" data-id="${p.id}">${resolvida ? "Reabrir" : "Marcar resolvida"}</button><button class="btn sec sm" data-act="editarPendencia" data-id="${p.id}">Editar</button><button class="btn er sm" data-act="rmPendencia" data-id="${p.id}">Excluir</button></div>
+    </div>`;
+  }).join("");
+  document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarVist">← Vistoria</button>
+    <button class="btn sm" data-act="novaPendencia" style="margin:4px 0 10px;width:auto">+ Nova pendência</button>
+    ${filtros}${linhas || '<p class="mut">Sem pendências com esse filtro.</p>'}`;
+}
+function formPendencia(pid) {
+  const p = pid ? S.pendencias.find(x => x.id === pid) : null;
+  const cats = S.vist_categorias.slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (!cats.length) { alert("Crie uma categoria primeiro (Categorias e tipos)."); return; }
+  const catSel = p ? p.categoria_id : cats[0].id;
+  const tipos = S.vist_tipos.filter(t => t.categoria_id === Number(catSel));
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>${pid ? "Editar" : "Nova"} pendência</h2>
+    <div class="field" style="margin-top:8px"><label>Categoria</label><select id="peCat">${cats.map(c => `<option value="${c.id}" ${String(catSel) === String(c.id) ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Tipo de serviço (opcional)</label><select id="peTipo"><option value="">—</option>${tipos.map(t => `<option value="${t.id}" ${p && p.tipo_id === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Cômodo / local</label><input id="peLocal" value="${esc(p ? p.local || "" : "")}" placeholder="ex: sala, cozinha, banheiro social"></div>
+    <div class="field"><label>Descrição do problema</label><textarea id="peDesc" rows="2">${esc(p ? p.descricao || "" : "")}</textarea></div>
+    <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Quantidade (opcional)</label><input type="number" id="peQtd" value="${p && p.quantidade != null ? p.quantidade : ""}"></div>
+    <div class="field" style="flex:1"><label>Origem</label><select id="peOrigem"><option value="interna" ${!p || p.origem === "interna" ? "selected" : ""}>Vistoria interna</option><option value="cliente" ${p && p.origem === "cliente" ? "selected" : ""}>Apontada pelo cliente</option></select></div></div>
+    <div class="field"><label>Diagnóstico / observação (opcional)</label><input id="peDiag" value="${esc(p ? p.diagnostico || "" : "")}" placeholder="ex: não era o piso, era o contrapiso"></div>
+    <p class="err" id="peErr" style="display:none"></p>
+    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarPendencia" data-id="${pid || ""}">Salvar</button></div></div>`;
+  dlg.showModal();
+}
+function vVistTipos() {
+  topo("Categorias e tipos", "");
+  const cats = S.vist_categorias.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const corpo = cats.map(c => {
+    const tipos = S.vist_tipos.filter(t => t.categoria_id === c.id).sort((a, b) => a.name.localeCompare(b.name));
+    return `<div class="card">
+      <div class="row" style="cursor:default;justify-content:space-between;border:0;padding:0 0 6px"><b>${esc(c.name)}</b><span style="white-space:nowrap"><button class="btn sec sm" data-act="renomearCat2" data-id="${c.id}">✎</button> <button class="btn er sm" data-act="rmCat2" data-id="${c.id}">✕</button></span></div>
+      <div class="rows">${tipos.map(t => `<div class="row" style="cursor:default"><div class="g">${esc(t.name)}</div><button class="btn sec sm" data-act="renomearTipo" data-id="${t.id}">✎</button><button class="btn er sm" data-act="rmTipo" data-id="${t.id}">✕</button></div>`).join("") || '<div class="row"><span class="mut">Sem tipos.</span></div>'}</div>
+      <div class="row" style="cursor:default;gap:8px"><input id="novoTipo_${c.id}" placeholder="Novo tipo de serviço..."><button class="btn sm" data-act="addTipo" data-id="${c.id}">+</button></div>
+    </div>`;
+  }).join("");
+  document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
+    <div class="row" style="cursor:default;gap:8px;margin:8px 0"><input id="novaCat" placeholder="Nova categoria..."><button class="btn sm" data-act="addCat2">+</button></div>${corpo}`;
+}
+
 const voltarMais = () => `<button class="btn sec sm voltar" data-act="irTela" data-tela="mais">← Mais</button>`;
 function vMais() {
   topo("Mais", "");
@@ -1227,6 +1317,7 @@ function vMais() {
   document.getElementById("main").innerHTML = `
     <p class="sec-t" style="margin-top:0">Cadastros e visões</p>
     <div class="rows">
+      ${item("vistoria", "Vistoria", "Pendências por casa (checklist de entrega)")}
       ${item("descontos", "Descontos", "Adiantamentos e valores a descontar")}
       ${item("conferencia", "Conferência de medição", "Confere o Excel: Resumo × planilhas individuais")}
       ${item("rastreabilidade", "Rastreabilidade", "Documentação do concreto por casa")}
@@ -1899,6 +1990,25 @@ document.addEventListener("click", e => {
     }
     case "exportar": return baixar("obra-" + new Date().toISOString().slice(0, 10) + ".json", JSON.stringify(S), "application/json");
     case "importar": return document.getElementById("fileImp").click();
+    case "vistCasa": vistCasa = id; vistFiltroCat = ""; vistFiltroStatus = ""; return render();
+    case "voltarVist": vistCasa = null; return render();
+    case "novaPendencia": return formPendencia(null);
+    case "editarPendencia": return formPendencia(id);
+    case "salvarPendencia": {
+      const catId = Number(document.getElementById("peCat").value), tipoId = Number(document.getElementById("peTipo").value) || null, local = document.getElementById("peLocal").value.trim(), desc = document.getElementById("peDesc").value.trim(), qv = document.getElementById("peQtd").value, qtd = qv === "" ? null : Number(qv), origem = document.getElementById("peOrigem").value, diag = document.getElementById("peDiag").value.trim();
+      if (!catId || !desc) { const el = document.getElementById("peErr"); el.textContent = "Categoria e descrição são obrigatórios."; el.style.display = "block"; return; }
+      if (id) { const p = S.pendencias.find(x => x.id === id); if (p) Object.assign(p, { categoria_id: catId, tipo_id: tipoId, local: local || null, descricao: desc, quantidade: qtd, origem, diagnostico: diag || null }); }
+      else S.pendencias.push({ id: nextId("pendencias"), house_id: vistCasa, categoria_id: catId, tipo_id: tipoId, local: local || null, descricao: desc, quantidade: qtd, origem, diagnostico: diag || null, status: "pendente", created_at: agoraSql(), resolved_at: null });
+      salvar(); dlg.close(); return render();
+    }
+    case "toggleResolvida": { const p = S.pendencias.find(x => x.id === id); if (p) { if (p.status === "resolvida") { p.status = "pendente"; p.resolved_at = null; } else { p.status = "resolvida"; p.resolved_at = agoraSql(); } salvar(); } return render(); }
+    case "rmPendencia": { if (!confirm("Excluir esta pendência?")) return; S.pendencias = S.pendencias.filter(p => p.id !== id); salvar(); return render(); }
+    case "addCat2": { const el = document.getElementById("novaCat"), n = el.value.trim(); if (n) { S.vist_categorias.push({ id: nextId("vist_categorias"), name: n }); salvar(); } return render(); }
+    case "renomearCat2": { const c = S.vist_categorias.find(x => x.id === id); const n = prompt("Renomear categoria:", c.name); if (n && n.trim()) { c.name = n.trim(); salvar(); } return render(); }
+    case "rmCat2": { if (S.pendencias.some(p => p.categoria_id === id)) return alert("Há pendências nesta categoria — mova ou exclua antes."); if (!confirm("Excluir esta categoria e seus tipos?")) return; S.vist_tipos = S.vist_tipos.filter(t => t.categoria_id !== id); S.vist_categorias = S.vist_categorias.filter(c => c.id !== id); salvar(); return render(); }
+    case "addTipo": { const el = document.getElementById("novoTipo_" + id), n = el.value.trim(); if (n) { S.vist_tipos.push({ id: nextId("vist_tipos"), categoria_id: id, name: n }); salvar(); } return render(); }
+    case "renomearTipo": { const t = S.vist_tipos.find(x => x.id === id); const n = prompt("Renomear tipo:", t.name); if (n && n.trim()) { t.name = n.trim(); salvar(); } return render(); }
+    case "rmTipo": { if (S.pendencias.some(p => p.tipo_id === id) && !confirm("Há pendências com este tipo. Excluir mesmo assim? (elas ficam sem tipo)")) return; S.pendencias.forEach(p => { if (p.tipo_id === id) p.tipo_id = null; }); S.vist_tipos = S.vist_tipos.filter(t => t.id !== id); salvar(); return render(); }
     case "sync": { const cid = document.getElementById("aCid"); if (cid) { const v = cid.value.trim(); if (v !== (S.config.driveClientId || "")) { S.config.driveClientId = v; persistir(); } } return sincronizar(true); }
   }
 });
@@ -1917,6 +2027,10 @@ document.addEventListener("change", e => {
   if (e.target.id === "ctStatus") { const c = IDX.contract.get(sel); if (c) { c.status = e.target.value; salvar(); } return render(); }
   if (e.target.id === "servTeam") { servFiltroTeam = e.target.value; return render(); }
   if (e.target.id === "gradeTeam") { gradeFiltroTeam = e.target.value; return render(); }
+  if (e.target.id === "vistMod") { vistMod = e.target.value; return render(); }
+  if (e.target.id === "vistFCat") { vistFiltroCat = e.target.value; return render(); }
+  if (e.target.id === "vistFSt") { vistFiltroStatus = e.target.value; return render(); }
+  if (e.target.id === "peCat") { const tipos = S.vist_tipos.filter(t => t.categoria_id === Number(e.target.value)), sel = document.getElementById("peTipo"); if (sel) sel.innerHTML = '<option value="">—</option>' + tipos.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""); return; }
   if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
   if (e.target.id === "mfDe") { medDe = e.target.value; return render(); }
   if (e.target.id === "mfAte") { medAte = e.target.value; return render(); }
@@ -2066,7 +2180,7 @@ function agendarSync() {
 async function init() {
   try {
     const salvo = await idbGet("estado");
-    if (salvo && salvo.contracts) { S = salvo; indexar(); }
+    if (salvo && salvo.contracts) { S = salvo; for (const t of TABELAS) if (!Array.isArray(S[t])) S[t] = []; indexar(); }
     else {
       // primeira vez: tenta semear com o arquivo de migração (só existe localmente; nunca vai pro repo público)
       try {
