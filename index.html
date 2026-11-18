@@ -81,6 +81,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--ac);outline-offs
 .ava{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:600;font-size:15px;background:var(--in-bg);color:var(--in-tx)}
 .cli-m{display:flex;flex-wrap:wrap;gap:5px 7px;align-items:center;margin-top:4px}
 .cli-m .ph{font-size:12px;color:var(--tx3)}
+.vist-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.vist-nav .btn{width:100%}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi p{margin:0;font-size:11.5px;color:var(--tx2)}
@@ -1263,8 +1265,8 @@ function vVistoria() {
   if (!vistMod && mods.length) vistMod = String(mods[0].id);
   const mid = Number(vistMod), casas = casasDoModulo(mid);
   topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
-  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="agenda" style="width:auto">Agenda</button><button class="btn sec sm" data-act="irTela" data-tela="vistrel" style="width:auto">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="clientes" style="width:auto">Clientes</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
-    <div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
+  const ctrl = `<div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+    <div class="vist-nav"><button class="btn sec sm" data-act="irTela" data-tela="agenda">Agenda</button><button class="btn sec sm" data-act="irTela" data-tela="vistrel">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="clientes">Clientes</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos">Categorias</button></div>`;
   // alertas do módulo
   const semCheck = casas.filter(h => !h.checklist_done_at).length;
   const temAgend = hid => S.agendamentos.some(a => a.house_id === hid);
@@ -1281,8 +1283,10 @@ function vVistoria() {
   const linhaCasa = h => {
     const ps = pendDaCasa(h.id), ab = ps.filter(p => p.status !== "resolvida").length, re = ps.length - ab, feito = h.checklist_done_at;
     const cl = h.cliente_id ? (S.clientes.find(c => c.id === h.cliente_id) || {}).nome : "";
-    return `<button class="row" data-act="vistCasa" data-id="${h.id}" style="${h.vendida ? "background:var(--in-bg)" : ""}">
-      <div class="g"><b>${h.vendida ? "★ " : ""}${esc(h.name)}</b><small>${ab ? ab + " pendente(s)" : (ps.length ? "sem pendências abertas" : (feito ? "checklist ok" : "sem checklist"))}${re ? " · " + re + " resolvida(s)" : ""}${h.vendida ? " · vendida" + (cl ? " (" + esc(cl) + ")" : "") : ""}</small></div>
+    const status = ab ? ab + " pendente" + (ab > 1 ? "s" : "") + (re ? " · " + re + " resolvida" + (re > 1 ? "s" : "") : "") : (ps.length ? "tudo resolvido" : (feito ? "checklist concluído" : "sem checklist"));
+    const vendTag = h.vendida ? `<span class="tag in">vendida${cl ? " · " + esc(cl) : ""}</span>` : "";
+    return `<button class="row" data-act="vistCasa" data-id="${h.id}"${h.vendida ? ' style="border-left:3px solid var(--in-tx)"' : ""}>
+      <div class="g"><b>${esc(h.name)}</b><div class="cli-m"><span class="ph">${status}</span>${vendTag}</div></div>
       <span class="tag ${ab ? "wa" : (ps.length || feito ? "ok" : "mut")}">${ab || (ps.length || feito ? "✓" : "—")}</span></button>`;
   };
   const linhas = casasOrd.map(linhaCasa).join("");
