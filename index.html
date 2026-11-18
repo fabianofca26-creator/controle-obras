@@ -459,7 +459,7 @@ function carregarDados(d) {
 
 // ---------- navegação / render ----------
 function ir(t) { tela = t; sel = null; render(); }
-const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia", "vistoria", "visttipos"];
+const GRUPO_MAIS = ["mais", "modulos", "catalogo", "descontos", "rastreabilidade", "mapa", "conferencia", "vistoria", "visttipos", "vistrel"];
 function render() {
   const grupo = GRUPO_MAIS.includes(tela) ? "mais" : tela;
   document.querySelectorAll("[data-tab]").forEach(b => {
@@ -467,7 +467,7 @@ function render() {
     const ativo = !sel && (d === tela || (naBarra && d === grupo));
     b.setAttribute("aria-current", ativo ? "page" : "false");
   });
-  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim, vistoria: vVistoria, visttipos: vVistTipos };
+  const V = { painel: vPainel, contratos: vContratos, medicoes: vMedicoes, relatorios: vRelatorios, mais: vMais, modulos: vModulos, catalogo: vCatalogo, descontos: vDescontos, rastreabilidade: vRastreabilidade, mapa: vMapa, conferencia: vConferencia, importbol: vImportBoletim, vistoria: vVistoria, visttipos: vVistTipos, vistrel: vVistRelatorio };
   if (tela === "contratos" && sel) return subServico ? vServico() : vContrato();
   (V[tela] || vPainel)();
 }
@@ -1249,7 +1249,7 @@ function vVistoria() {
   if (!vistMod && mods.length) vistMod = String(mods[0].id);
   const mid = Number(vistMod), casas = casasDoModulo(mid);
   topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
-  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
+  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button class="btn sec sm" data-act="irTela" data-tela="vistrel" style="width:auto">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos" style="width:auto">Categorias e tipos</button></div>
     <div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
   let linhas = "", grupo = null;
   for (const h of casas) {
@@ -1358,6 +1358,41 @@ async function excluirFoto(id) { S.pendencia_fotos = S.pendencia_fotos.filter(f 
 function fotosHTML(pid) {
   const fs = fotosPend(pid);
   return `<div class="fotos">${fs.map(f => `<span class="wrap"><img data-foto="${f.id}" data-act="verFoto" data-id="${f.id}" alt="…"><button class="x" data-act="rmFoto" data-id="${f.id}" title="Excluir">✕</button></span>`).join("")}<button class="add" data-act="addFoto" data-id="${pid}" title="Adicionar fotos">＋</button></div>`;
+}
+const fotosMiniHTML = pid => { const fs = fotosPend(pid); return fs.length ? `<div class="fotos">${fs.map(f => `<img data-foto="${f.id}" data-act="verFoto" data-id="${f.id}" alt="…" style="width:56px;height:56px">`).join("")}</div>` : ""; };
+function vVistRelatorio() {
+  const mods = S.modules.slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (!vistMod && mods.length) vistMod = String(mods[0].id);
+  const mid = Number(vistMod), casas = casasDoModulo(mid), casasIds = new Set(casas.map(h => h.id));
+  const pend = S.pendencias.filter(p => casasIds.has(p.house_id));
+  topo("Relatório de vistoria", (IDX.module.get(mid) || {}).name || "");
+  // totais por tipo de serviço (geral do módulo)
+  const porTipo = new Map();
+  for (const p of pend) { if (p.tipo_id == null) continue; if (!porTipo.has(p.tipo_id)) porTipo.set(p.tipo_id, { nome: nomeTipo(p.tipo_id), cat: nomeCat(p.categoria_id), n: 0, un: 0, ab: 0 }); const g = porTipo.get(p.tipo_id); g.n++; g.un += (p.quantidade || 0); if (p.status !== "resolvida") g.ab++; }
+  const tiposArr = [...porTipo.values()].sort((a, b) => a.cat.localeCompare(b.cat) || a.nome.localeCompare(b.nome));
+  const geralHTML = tiposArr.length ? `<p class="sec-t">Totais por tipo de serviço (módulo)</p><div class="card" style="padding:0;overflow-x:auto"><table class="mats" style="margin:0"><thead><tr><td style="padding-left:12px">Tipo</td><td>Pendências</td><td>Unidades</td></tr></thead><tbody>${tiposArr.map(t => `<tr><td style="padding-left:12px">${esc(t.nome)} <span class="tag mut">${esc(t.cat)}</span></td><td>${t.ab ? "<b>" + t.ab + "</b> ab · " : ""}${t.n}</td><td>${t.un || "—"}</td></tr>`).join("")}</tbody></table></div>` : "";
+  // por casa
+  const resumoCat = plist => { const m = new Map(); for (const p of plist) { const c = nomeCat(p.categoria_id); if (!m.has(c)) m.set(c, { n: 0, un: 0, ab: 0 }); const g = m.get(c); g.n++; g.un += (p.quantidade || 0); if (p.status !== "resolvida") g.ab++; } return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])); };
+  let casasHTML = "";
+  for (const h of casas) {
+    const pl = pend.filter(p => p.house_id === h.id); if (!pl.length) continue;
+    const ab = pl.filter(p => p.status !== "resolvida").length;
+    const cats = resumoCat(pl).map(([c, g]) => `${esc(c)}: ${g.n}${g.un ? " (" + g.un + " un)" : ""}${g.ab ? ", " + g.ab + " ab" : ""}`).join(" · ");
+    const itens = pl.slice().sort((a, b) => (a.status === b.status ? 0 : a.status === "resolvida" ? 1 : -1)).map(p => {
+      const r = p.status === "resolvida";
+      return `<div style="border-left:3px solid ${r ? "var(--ok-tx)" : "var(--wa-tx)"};padding:6px 0 6px 10px;margin-top:6px">
+        <b style="font-size:13px">${esc(nomeCat(p.categoria_id))}${p.local ? " · " + esc(p.local) : ""}</b> <span class="tag ${r ? "ok" : "wa"}">${r ? "Resolvida" : "Pendente"}</span>
+        ${p.descricao ? `<div style="font-size:13px">${esc(p.descricao)}</div>` : ""}
+        <div class="mut" style="font-size:12px">${p.tipo_id ? esc(nomeTipo(p.tipo_id)) + " · " : ""}${p.quantidade != null ? "Qtd " + p.quantidade + " · " : ""}${p.origem === "cliente" ? "cliente" : "interna"}${p.diagnostico ? " · " + esc(p.diagnostico) : ""}</div>
+        ${fotosMiniHTML(p.id)}</div>`;
+    }).join("");
+    casasHTML += `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(h.name)}</b><span class="tag ${ab ? "wa" : "ok"}">${ab ? ab + " pendente(s)" : "✓ ok"}</span></div>
+      <p class="mut" style="font-size:12.5px;margin:6px 0 0">${cats}</p>${itens}</div>`;
+  }
+  const ctrl = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
+    <div style="margin:4px 0 10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>`;
+  document.getElementById("main").innerHTML = ctrl + geralHTML + (casasHTML || '<p class="mut">Nenhuma pendência neste módulo.</p>');
+  carregarFotos();
 }
 
 const voltarMais = () => `<button class="btn sec sm voltar" data-act="irTela" data-tela="mais">← Mais</button>`;
