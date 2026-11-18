@@ -107,6 +107,13 @@ dialog .dacts .btn{width:auto;padding:10px 18px}
 .mats td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line);vertical-align:middle}
 .mats td:last-child{text-align:right}
 .mats thead td{position:sticky;top:0;background:var(--card);z-index:1;font-weight:600;color:var(--tx2)}
+.fotos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0}
+.fotos .wrap{position:relative}
+.fotos img,.fotos .add{width:78px;height:78px;object-fit:cover;border-radius:9px;border:1px solid var(--line);cursor:pointer;background:var(--bg)}
+.fotos .add{display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--tx3)}
+.fotos .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--er-tx);color:#fff;border:0;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+dialog.foto{background:none;box-shadow:none;max-width:95vw}
+dialog.foto img{max-width:95vw;max-height:90vh;border-radius:10px}
 .filsub{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;background:var(--bg);padding:6px 8px;font-weight:600}
 table.rep{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;display:block;overflow-x:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
 table.rep td,table.rep th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
@@ -182,7 +189,9 @@ table.grade td.cel:hover{outline:2px solid var(--ac);outline-offset:-2px}
 <input type="file" id="fileDesc" accept=".csv,text/csv" hidden>
 <input type="file" id="fileConf" accept=".xlsx" hidden>
 <input type="file" id="fileBol" accept=".pdf,application/pdf" hidden>
+<input type="file" id="fileFoto" accept="image/*" multiple hidden>
 <dialog id="dlg"></dialog>
+<dialog id="dlgFoto" class="foto"></dialog>
 
 <script>
 // ---------- helpers ----------
@@ -1269,12 +1278,14 @@ function vVistoriaCasa() {
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${esc(nomeCat(p.categoria_id))}${p.local ? " · " + esc(p.local) : ""}</b><span class="tag ${resolvida ? "ok" : "wa"}">${resolvida ? "Resolvida" : "Pendente"}</span></div>
       ${p.descricao ? `<p style="margin:4px 0 0;font-size:14px">${esc(p.descricao)}</p>` : ""}
       <p class="mut" style="font-size:12px;margin:4px 0 0">${p.tipo_id ? "Tipo: " + esc(nomeTipo(p.tipo_id)) + " · " : ""}${p.quantidade != null ? "Qtd: " + p.quantidade + " · " : ""}${p.origem === "cliente" ? "Apontada pelo cliente" : "Vistoria interna"}${p.diagnostico ? " · " + esc(p.diagnostico) : ""}</p>
+      ${fotosHTML(p.id)}
       <div class="acts" style="margin-top:8px"><button class="btn sec sm" data-act="toggleResolvida" data-id="${p.id}">${resolvida ? "Reabrir" : "Marcar resolvida"}</button><button class="btn sec sm" data-act="editarPendencia" data-id="${p.id}">Editar</button><button class="btn er sm" data-act="rmPendencia" data-id="${p.id}">Excluir</button></div>
     </div>`;
   }).join("");
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarVist">← Vistoria</button>
     <button class="btn sm" data-act="novaPendencia" style="margin:4px 0 10px;width:auto">+ Nova pendência</button>
     ${filtros}${linhas || '<p class="mut">Sem pendências com esse filtro.</p>'}`;
+  carregarFotos();
 }
 function formPendencia(pid) {
   const p = pid ? S.pendencias.find(x => x.id === pid) : null;
@@ -1308,6 +1319,45 @@ function vVistTipos() {
   }).join("");
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
     <div class="row" style="cursor:default;gap:8px;margin:8px 0"><input id="novaCat" placeholder="Nova categoria..."><button class="btn sm" data-act="addCat2">+</button></div>${corpo}`;
+}
+// fotos das pendências: blob comprimido no IndexedDB (db "obra_fotos"), registro em S.pendencia_fotos
+const fdb = {
+  _db: null,
+  abrir() { return new Promise((res, rej) => { const r = indexedDB.open("obra_fotos", 1); r.onupgradeneeded = () => r.result.createObjectStore("fotos"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async op(modo, fn) { const db = this._db || (this._db = await this.abrir()); return new Promise((res, rej) => { const rq = fn(db.transaction("fotos", modo).objectStore("fotos")); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); },
+  get(id) { return this.op("readonly", s => s.get(String(id))); },
+  put(id, b) { return this.op("readwrite", s => s.put(b, String(id))); },
+  del(id) { return this.op("readwrite", s => s.delete(String(id))); }
+};
+function comprimir(file) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { const k = Math.min(1, 1200 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(img.src); res(b); }, "image/jpeg", 0.8); };
+    img.onerror = () => res(null); img.src = URL.createObjectURL(file);
+  });
+}
+const fotosPend = pid => S.pendencia_fotos.filter(f => f.pendencia_id === pid);
+let fotoPendId = null;
+async function guardarFotos(files, pid) {
+  for (const f of files) { const b = await comprimir(f); if (!b) continue; const id = nextId("pendencia_fotos"); await fdb.put(id, b).catch(() => { }); S.pendencia_fotos.push({ id, pendencia_id: pid, created_at: agoraSql(), driveId: null }); }
+  salvar(); render(); if (typeof agendarSync === "function") agendarSync();
+}
+const urlFoto = {};
+async function carregarFotos() {
+  for (const img of document.querySelectorAll("img[data-foto]:not([src])")) {
+    const id = img.dataset.foto;
+    if (!urlFoto[id]) { const b = await fdb.get(id).catch(() => null); if (b) urlFoto[id] = URL.createObjectURL(b); }
+    if (urlFoto[id]) img.src = urlFoto[id]; else img.alt = "foto neste outro aparelho";
+  }
+}
+async function verFoto(id) {
+  let u = urlFoto[id]; if (!u) { const b = await fdb.get(id).catch(() => null); if (b) u = urlFoto[id] = URL.createObjectURL(b); }
+  if (!u) return; const d = document.getElementById("dlgFoto"); d.innerHTML = `<img src="${u}"><button class="btn" data-act="fecharFoto" style="position:absolute;top:10px;right:10px;width:auto;padding:6px 12px">Fechar</button>`; d.showModal();
+}
+async function excluirFoto(id) { S.pendencia_fotos = S.pendencia_fotos.filter(f => f.id !== id); await fdb.del(id).catch(() => { }); delete urlFoto[id]; salvar(); render(); }
+function fotosHTML(pid) {
+  const fs = fotosPend(pid);
+  return `<div class="fotos">${fs.map(f => `<span class="wrap"><img data-foto="${f.id}" data-act="verFoto" data-id="${f.id}" alt="…"><button class="x" data-act="rmFoto" data-id="${f.id}" title="Excluir">✕</button></span>`).join("")}<button class="add" data-act="addFoto" data-id="${pid}" title="Adicionar fotos">＋</button></div>`;
 }
 
 const voltarMais = () => `<button class="btn sec sm voltar" data-act="irTela" data-tela="mais">← Mais</button>`;
@@ -2002,7 +2052,11 @@ document.addEventListener("click", e => {
       salvar(); dlg.close(); return render();
     }
     case "toggleResolvida": { const p = S.pendencias.find(x => x.id === id); if (p) { if (p.status === "resolvida") { p.status = "pendente"; p.resolved_at = null; } else { p.status = "resolvida"; p.resolved_at = agoraSql(); } salvar(); } return render(); }
-    case "rmPendencia": { if (!confirm("Excluir esta pendência?")) return; S.pendencias = S.pendencias.filter(p => p.id !== id); salvar(); return render(); }
+    case "rmPendencia": { if (!confirm("Excluir esta pendência?")) return; for (const f of fotosPend(id)) fdb.del(f.id).catch(() => { }); S.pendencia_fotos = S.pendencia_fotos.filter(f => f.pendencia_id !== id); S.pendencias = S.pendencias.filter(p => p.id !== id); salvar(); return render(); }
+    case "addFoto": fotoPendId = id; return document.getElementById("fileFoto").click();
+    case "verFoto": return verFoto(id);
+    case "rmFoto": { if (!confirm("Excluir esta foto?")) return; return excluirFoto(id); }
+    case "fecharFoto": return document.getElementById("dlgFoto").close();
     case "addCat2": { const el = document.getElementById("novaCat"), n = el.value.trim(); if (n) { S.vist_categorias.push({ id: nextId("vist_categorias"), name: n }); salvar(); } return render(); }
     case "renomearCat2": { const c = S.vist_categorias.find(x => x.id === id); const n = prompt("Renomear categoria:", c.name); if (n && n.trim()) { c.name = n.trim(); salvar(); } return render(); }
     case "rmCat2": { if (S.pendencias.some(p => p.categoria_id === id)) return alert("Há pendências nesta categoria — mova ou exclua antes."); if (!confirm("Excluir esta categoria e seus tipos?")) return; S.vist_tipos = S.vist_tipos.filter(t => t.categoria_id !== id); S.vist_categorias = S.vist_categorias.filter(c => c.id !== id); salvar(); return render(); }
@@ -2051,6 +2105,7 @@ document.addEventListener("change", e => {
     carregarPdfjs().then(() => f.arrayBuffer()).then(buf => lerBoletim(buf)).then(r => { impBol = r; impBusy = false; render(); }).catch(err => { impBusy = false; impErro = err.message || "não consegui ler o PDF."; render(); });
     return;
   }
+  if (e.target.id === "fileFoto" && e.target.files.length) { const files = [...e.target.files], pid = fotoPendId; e.target.value = ""; guardarFotos(files, pid); return; }
   if (e.target.id === "bolMod") { if (impBol) { impBol.modId = Number(e.target.value); const box = document.getElementById("bolHouses"); if (box) box.innerHTML = ncHousesHTML(impBol.modId); } return; }
   if (e.target.classList && e.target.classList.contains("bolCat")) { if (impBol) impBol.serv[Number(e.target.dataset.i)].catId = e.target.value; return; }
   if (e.target.id === "fileConf" && e.target.files.length) {
