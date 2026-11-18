@@ -78,6 +78,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--ac);outline-offs
 .chip{display:inline-block;font-size:12px;padding:6px 11px;border-radius:14px;border:1px solid var(--line2);color:var(--tx2);cursor:pointer;background:none;margin:0 6px 6px 0}
 .chip[aria-pressed=true]{background:var(--in-bg);color:var(--in-tx);border-color:transparent}
 .sec-t{font-size:12px;color:var(--tx2);margin:16px 0 7px;text-transform:uppercase;letter-spacing:.04em}
+.ava{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:600;font-size:15px;background:var(--in-bg);color:var(--in-tx)}
+.cli-m{display:flex;flex-wrap:wrap;gap:5px 7px;align-items:center;margin-top:4px}
+.cli-m .ph{font-size:12px;color:var(--tx3)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi p{margin:0;font-size:11.5px;color:var(--tx2)}
@@ -1355,26 +1358,39 @@ function vVistTipos() {
     <div class="row" style="cursor:default;gap:8px;margin:8px 0"><input id="novaCat" placeholder="Nova categoria..."><button class="btn sm" data-act="addCat2">+</button></div>${corpo}`;
 }
 function vClientes() {
-  topo("Clientes", S.clientes.length + " cliente(s)");
+  const vend = S.houses.filter(h => h.vendida).length;
+  topo("Clientes", S.clientes.length + " cliente" + (S.clientes.length === 1 ? "" : "s") + (vend ? " · " + vend + " casa" + (vend === 1 ? "" : "s") + " vendida" + (vend === 1 ? "" : "s") : ""));
   const linhas = S.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(cl => {
-    const casa = S.houses.find(h => h.cliente_id === cl.id);
-    return `<div class="row" style="cursor:default"><div class="g"><b>${esc(cl.nome)}</b><small>${esc(cl.telefone || "sem telefone")}${casa ? " · casa " + esc(casa.name) : ""}</small></div><button class="btn sec sm" data-act="editarCliente" data-id="${cl.id}">✎</button><button class="btn er sm" data-act="rmCliente" data-id="${cl.id}">✕</button></div>`;
+    const casa = S.houses.find(h => h.cliente_id === cl.id), mod = casa && IDX.module.get(casa.module_id);
+    const ini = esc((cl.nome.trim()[0] || "?").toUpperCase());
+    const casaTag = casa
+      ? `<span class="tag in">${mod ? esc(mod.name) + " · " : ""}${esc(casa.name)}</span>${casa.vendida ? `<span class="tag ok">vendida</span>` : ""}`
+      : `<span class="tag mut">sem casa</span>`;
+    const ph = cl.telefone ? `<span class="ph">${esc(cl.telefone)}</span>` : "";
+    return `<div class="row" style="cursor:default"><span class="ava">${ini}</span>
+      <div class="g"><b>${esc(cl.nome)}</b><div class="cli-m">${ph}${casaTag}</div></div>
+      <button class="btn sec sm" data-act="editarCliente" data-id="${cl.id}">✎</button><button class="btn er sm" data-act="rmCliente" data-id="${cl.id}">✕</button></div>`;
   }).join("");
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="irTela" data-tela="vistoria">← Vistoria</button>
     <button class="btn sm" data-act="novoCliente" style="margin:8px 0;width:auto">+ Novo cliente</button>
-    <div class="rows">${linhas || '<div class="row"><span class="mut">Nenhum cliente.</span></div>'}</div>`;
+    <div class="rows">${linhas || '<div class="row" style="cursor:default"><span class="mut">Nenhum cliente ainda. Toque em "+ Novo cliente".</span></div>'}</div>`;
 }
 function formCliente(cid) {
   const c = cid ? S.clientes.find(x => x.id === cid) : null, dlg = document.getElementById("dlg");
-  const casas = S.houses.slice().sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; });
   const casaAtual = cid ? S.houses.find(h => h.cliente_id === cid) : null;
+  const modSel = casaAtual ? casaAtual.module_id : (S.modules[0] ? S.modules[0].id : "");
   dlg.innerHTML = `<div class="dbody"><h2>${cid ? "Editar" : "Novo"} cliente</h2>
     <div class="field" style="margin-top:8px"><label>Nome</label><input id="clNome" value="${esc(c ? c.nome : "")}"></div>
     <div class="field"><label>Telefone</label><input id="clTel" value="${esc(c ? c.telefone || "" : "")}" placeholder="(67) 99999-9999"></div>
-    <div class="field"><label>Casa</label><select id="clCasa"><option value="">— sem casa —</option>${casas.map(h => { const dono = h.cliente_id && h.cliente_id !== cid; return `<option value="${h.id}" ${casaAtual && casaAtual.id === h.id ? "selected" : ""} ${dono ? "disabled" : ""}>${esc(h.name)}${dono ? " (já vinculada)" : ""}</option>`; }).join("")}</select></div>
+    <div class="field"><label>Módulo</label><select id="clMod">${S.modules.map(m => `<option value="${m.id}" ${m.id === modSel ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Casa</label><select id="clCasa" data-cli="${cid || ""}">${optCasasCli(modSel, cid, casaAtual)}</select></div>
     <p class="err" id="clErr" style="display:none"></p>
     <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarCliente" data-id="${cid || ""}">Salvar</button></div></div>`;
   dlg.showModal();
+}
+function optCasasCli(modId, cid, casaAtual) {
+  const casas = S.houses.filter(h => h.module_id === Number(modId)).sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; });
+  return `<option value="">— sem casa —</option>` + casas.map(h => { const dono = h.cliente_id && h.cliente_id !== cid; return `<option value="${h.id}" ${casaAtual && casaAtual.id === h.id ? "selected" : ""} ${dono ? "disabled" : ""}>${esc(h.name)}${dono ? " (já vinculada)" : ""}</option>`; }).join("");
 }
 function vAgenda() {
   if (!agendaMes) agendaMes = new Date().toISOString().slice(0, 7);
@@ -2258,6 +2274,7 @@ document.addEventListener("change", e => {
   if (e.target.id === "vistCliente") { const h = IDX.house.get(vistCasa); if (h) { h.cliente_id = Number(e.target.value) || null; salvar(); } return; }
   if (e.target.id === "agCasa") { const h = IDX.house.get(Number(e.target.value)), sel = document.getElementById("agCliente"); if (h && h.cliente_id && sel && !sel.value) sel.value = String(h.cliente_id); return; }
   if (e.target.id === "peCat") { const tipos = S.vist_tipos.filter(t => t.categoria_id === Number(e.target.value)), sel = document.getElementById("peTipo"); if (sel) sel.innerHTML = '<option value="">—</option>' + tipos.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""); return; }
+  if (e.target.id === "clMod") { const sel = document.getElementById("clCasa"); if (sel) sel.innerHTML = optCasasCli(e.target.value, Number(sel.dataset.cli) || "", null); return; }
   if (e.target.id === "mfTeam") { medTeam = e.target.value; return render(); }
   if (e.target.id === "mfDe") { medDe = e.target.value; return render(); }
   if (e.target.id === "mfAte") { medAte = e.target.value; return render(); }
