@@ -1451,7 +1451,7 @@ function formAgend(aid, hora, casaFixa) {
   dlg.innerHTML = `<div class="dbody"><h2>${aid ? "Editar" : "Nova"} vistoria</h2>
     <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Data</label><input type="date" id="agData" value="${dataSel}"></div>
     <div class="field" style="flex:1"><label>Horário</label><select id="agHora">${horarios.map(hh => `<option ${hh === horaSel ? "selected" : ""}>${hh}</option>`).join("")}</select></div></div>
-    <div class="field"><label>Casa</label><select id="agCasa">${casas.map(h => `<option value="${h.id}" ${h.id === casaSel ? "selected" : ""}>${esc(h.name)}${h.vendida ? " ★" : ""}</option>`).join("")}</select></div>
+    <div class="field"><label>Casa</label><select id="agCasa">${S.modules.slice().sort((a2, b2) => a2.name.localeCompare(b2.name)).map(m => { const hs = casas.filter(h => h.module_id === m.id); return hs.length ? `<optgroup label="${esc(m.name)}">${hs.map(h => `<option value="${h.id}" ${h.id === casaSel ? "selected" : ""}>${esc(h.name)}${h.vendida ? " ★" : ""}</option>`).join("")}</optgroup>` : ""; }).join("")}</select></div>
     <div class="field"><label>Comprador (cliente)</label><select id="agCliente"><option value="">— cliente —</option>${clientes.map(c => `<option value="${c.id}" ${a && a.cliente_id === c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select></div>
     <div class="field"><label>Observação (opcional)</label><input id="agObs" value="${esc(a ? a.obs || "" : "")}"></div>
     <p class="err" id="agErr" style="display:none"></p>
