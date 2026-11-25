@@ -1331,9 +1331,24 @@ function vVistoriaCasa() {
     <button class="btn ${feito ? "sec" : ""} sm" data-act="togChecklist" data-id="${h.id}" style="width:auto;margin-top:10px">${feito ? "✓ Checklist concluído em " + fmtDate(String(feito).slice(0, 10)) + " — desfazer" : "Marcar checklist concluído"}</button>
   </div>`;
   const ags = S.agendamentos.filter(a => a.house_id === h.id).sort((a, b) => (a.date + a.hora).localeCompare(b.date + b.hora));
+  const agItem = a => {
+    const cl = clienteDaCasa(a.house_id) || {};
+    const stTag = a.resultado ? `<span class="tag ${a.resultado === "aprovada" ? "ok" : "er"}">${a.resultado === "aprovada" ? "Aprovada" : "Reprovada"}</span>` : (a.confirmado ? `<span class="tag in">Presença confirmada</span>` : `<span class="tag mut">Aguardando confirmação</span>`);
+    return `<div class="card" style="padding:10px 12px;margin:8px 0 0">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><b>${fmtDate(a.date)} · ${a.hora}</b>${stTag}</div>
+      <small class="mut" style="display:block;margin-top:2px">${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small>
+      <div class="acts" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn ${a.confirmado ? "sec" : ""} sm" data-act="togConfirma" data-id="${a.id}" style="width:auto">${a.confirmado ? "✓ Confirmada" : "Confirmar presença"}</button>
+        <button class="btn ${a.resultado === "aprovada" ? "" : "sec"} sm" data-act="setResultado" data-id="${a.id}" data-r="aprovada" style="width:auto">Aprovar</button>
+        <button class="btn ${a.resultado === "reprovada" ? "er" : "sec"} sm" data-act="setResultado" data-id="${a.id}" data-r="reprovada" style="width:auto">Reprovar</button>
+        <button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button>
+        <button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button>
+        <button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button>
+      </div></div>`;
+  };
   const cardAgenda = `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:14px">Vistoria agendada</b><button class="btn sec sm" data-act="agendarCasa" style="width:auto">+ Agendar</button></div>
-    ${ags.length ? `<div class="rows" style="margin-top:8px">${ags.map(a => { const cl = clienteDaCasa(a.house_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${fmtDate(a.date)} · ${a.hora}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }).join("")}</div>` : `<p class="mut" style="margin:8px 0 0;font-size:13px">Nenhuma vistoria agendada.</p>`}
+    ${ags.length ? ags.map(agItem).join("") : `<p class="mut" style="margin:8px 0 0;font-size:13px">Nenhuma vistoria agendada.</p>`}
   </div>`;
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarVist">← Vistoria</button>
     ${cardVenda}
@@ -1428,7 +1443,7 @@ function vAgenda() {
     const ags = S.agendamentos.filter(a => a.date === agendaDia);
     slots = `<p class="sec-t">Horários — ${fmtDate(agendaDia)}</p>` + AG_HORARIOS().map(hora => {
       const a = ags.find(x => x.hora === hora);
-      if (a) { const h = IDX.house.get(a.house_id) || {}, cl = clienteDaCasa(a.house_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${hora} · casa ${esc(h.name || "?")}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }
+      if (a) { const h = IDX.house.get(a.house_id) || {}, cl = clienteDaCasa(a.house_id) || {}; const stTag = a.resultado ? `<span class="tag ${a.resultado === "aprovada" ? "ok" : "er"}">${a.resultado === "aprovada" ? "Aprovada" : "Reprovada"}</span>` : (a.confirmado ? `<span class="tag in">Confirmada</span>` : ""); return `<div class="row" style="cursor:default"><div class="g"><b>${hora} · casa ${esc(h.name || "?")}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div>${stTag}<button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }
       return `<button class="row" data-act="novoAgend" data-hora="${hora}"><div class="g"><b>${hora}</b><small>livre</small></div><span class="mut">+ agendar</span></button>`;
     }).join("");
   } else slots = '<p class="mut" style="margin-top:12px">Toque num dia (útil) para ver e marcar horários.</p>';
@@ -2310,6 +2325,8 @@ document.addEventListener("click", async e => {
       cfgHorTmp = cfgDiaTmp = null;
       salvar(); dlg.close(); return render();
     }
+    case "togConfirma": { const a = S.agendamentos.find(x => x.id === id); if (a) { a.confirmado = !a.confirmado; salvar(); } return render(); }
+    case "setResultado": { const a = S.agendamentos.find(x => x.id === id); if (a) { const r = t.dataset.r; a.resultado = a.resultado === r ? null : r; salvar(); } return render(); }
     case "msgVistoria": return dlgMsgVistoria(id);
     case "copiarMsg": { const ta = document.getElementById("msgTxt"); ta.select(); try { await navigator.clipboard.writeText(ta.value); } catch { try { document.execCommand("copy"); } catch { } } t.textContent = "Copiado!"; return; }
     case "addFoto": fotoPendId = id; return document.getElementById("fileFoto").click();
