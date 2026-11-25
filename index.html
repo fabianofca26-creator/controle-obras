@@ -1460,14 +1460,19 @@ function formAgend(aid, hora, casaFixa) {
   // ao abrir, se a casa escolhida tem cliente vinculado e nenhum cliente marcado, sugere
   if (!a && casaSel) { const h0 = IDX.house.get(casaSel); if (h0 && h0.cliente_id) document.getElementById("agCliente").value = String(h0.cliente_id); }
 }
+let cfgHorTmp = null, cfgDiaTmp = null;
 function formConfigAgenda() {
-  const dlg = document.getElementById("dlg"), dias = AG_DIAS(), nomes = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  if (cfgHorTmp === null) { cfgHorTmp = AG_HORARIOS().slice(); cfgDiaTmp = AG_DIAS().slice(); }
+  const dlg = document.getElementById("dlg"), nomes = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const horas = cfgHorTmp.slice().sort();
   dlg.innerHTML = `<div class="dbody"><h2>Horários e dias</h2>
-    <div class="field" style="margin-top:8px"><label>Horários (um por linha, ex: 08:00)</label><textarea id="cfgHor" rows="4">${AG_HORARIOS().join("\n")}</textarea></div>
     <label style="font-size:12px;color:var(--tx2)">Dias de atendimento</label>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px">${nomes.map((n, i) => `<label class="chip" style="display:inline-flex;align-items:center;gap:5px;margin:0"><input type="checkbox" class="cfgDia" data-dow="${i}" ${dias.includes(i) ? "checked" : ""}> ${n}</label>`).join("")}</div>
-    <div class="dacts"><button class="btn sec" data-act="fecharDlg">Cancelar</button><button class="btn" data-act="salvarConfigAgenda">Salvar</button></div></div>`;
-  dlg.showModal();
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px">${nomes.map((n, i) => { const on = cfgDiaTmp.includes(i); return `<button class="chip" data-act="togCfgDia" data-dow="${i}" aria-pressed="${on}" style="margin:0${on ? ";background:var(--in-bg);color:var(--in-tx);border-color:transparent" : ""}">${n}</button>`; }).join("")}</div>
+    <label style="font-size:12px;color:var(--tx2)">Horários disponíveis</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px">${horas.length ? horas.map(h => `<span class="tag in" style="display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;font-size:13px">${h}<button data-act="rmCfgHor" data-hora="${h}" style="border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join("") : '<span class="mut" style="font-size:13px">Nenhum horário.</span>'}</div>
+    <div style="display:flex;gap:8px;margin-bottom:4px"><input type="time" id="cfgNovoHor" step="1800" style="flex:1"><button class="btn sec sm" data-act="addCfgHor" style="width:auto">Adicionar</button></div>
+    <div class="dacts"><button class="btn sec" data-act="cancelCfgAgenda">Cancelar</button><button class="btn" data-act="salvarConfigAgenda">Salvar</button></div></div>`;
+  if (!dlg.open) dlg.showModal();
 }
 // fotos das pendências: blob comprimido no IndexedDB (db "obra_fotos"), registro em S.pendencia_fotos
 const fdb = {
@@ -2258,10 +2263,14 @@ document.addEventListener("click", e => {
       salvar(); dlg.close(); return render();
     }
     case "configAgenda": return formConfigAgenda();
+    case "togCfgDia": { const d = Number(t.dataset.dow); cfgDiaTmp = cfgDiaTmp.includes(d) ? cfgDiaTmp.filter(x => x !== d) : [...cfgDiaTmp, d]; return formConfigAgenda(); }
+    case "addCfgHor": { const el = document.getElementById("cfgNovoHor"), v = el.value; if (v && /^\d{2}:\d{2}$/.test(v) && !cfgHorTmp.includes(v)) cfgHorTmp.push(v); el.value = ""; return formConfigAgenda(); }
+    case "rmCfgHor": { cfgHorTmp = cfgHorTmp.filter(h => h !== t.dataset.hora); return formConfigAgenda(); }
+    case "cancelCfgAgenda": { cfgHorTmp = cfgDiaTmp = null; dlg.close(); return; }
     case "salvarConfigAgenda": {
-      const hor = document.getElementById("cfgHor").value.split(/[\n,]/).map(s => s.trim()).filter(s => /^\d{1,2}:\d{2}$/.test(s));
-      const dias = [...document.querySelectorAll(".cfgDia:checked")].map(c => Number(c.dataset.dow));
-      S.config.agendaHorarios = hor.length ? hor : null; S.config.agendaDias = dias.length ? dias : null;
+      S.config.agendaHorarios = cfgHorTmp.length ? cfgHorTmp.slice().sort() : null;
+      S.config.agendaDias = cfgDiaTmp.length ? cfgDiaTmp.slice().sort((a, b) => a - b) : null;
+      cfgHorTmp = cfgDiaTmp = null;
       salvar(); dlg.close(); return render();
     }
     case "addFoto": fotoPendId = id; return document.getElementById("fileFoto").click();
