@@ -1439,19 +1439,30 @@ function vAgenda() {
     ${slots}
     <div style="margin-top:14px"><button class="btn sec sm" data-act="configAgenda" style="width:auto">Configurar horários e dias</button></div>`;
 }
+// casas do módulo p/ agendar: esconde as que já têm vistoria hoje ou no futuro (as passadas voltam, p/ revistoria); mantém sempre a casaSel (ex.: a que está sendo editada)
+function optCasasAg(modId, casaSel) {
+  const hoje = new Date().toISOString().slice(0, 10), ocupadas = new Set(S.agendamentos.filter(a => a.date >= hoje).map(a => a.house_id));
+  const hs = S.houses.filter(h => h.module_id === Number(modId) && (h.id === casaSel || !ocupadas.has(h.id))).sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; });
+  return hs.length ? hs.map(h => `<option value="${h.id}" ${h.id === casaSel ? "selected" : ""}>${esc(h.name)}${h.vendida ? " ★" : ""}</option>`).join("") : `<option value="">(todas já agendadas)</option>`;
+}
 function formAgend(aid, hora, casaFixa) {
   const a = aid ? S.agendamentos.find(x => x.id === aid) : null;
-  const casas = S.houses.slice().sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; });
   const clientes = S.clientes.slice().sort((x, y) => x.nome.localeCompare(y.nome));
   const horarios = AG_HORARIOS();
   const dataSel = a ? a.date : (agendaDia || new Date().toISOString().slice(0, 10));
   const horaSel = a ? a.hora : (hora || horarios[0]);
-  const casaSel = a ? a.house_id : (casaFixa || (casas[0] && casas[0].id));
+  const hoje = new Date().toISOString().slice(0, 10), ocupadas = new Set(S.agendamentos.filter(x => x.date >= hoje).map(x => x.house_id));
+  const mods = S.modules.slice().sort((x, y) => x.name.localeCompare(y.name));
+  let casaSel, modSel;
+  if (a) { casaSel = a.house_id; modSel = (IDX.house.get(casaSel) || {}).module_id; }
+  else if (casaFixa) { casaSel = casaFixa; modSel = (IDX.house.get(casaFixa) || {}).module_id; }
+  else { const m = mods.find(mm => S.houses.some(h => h.module_id === mm.id && !ocupadas.has(h.id))) || mods[0] || {}; modSel = m.id; const free = S.houses.filter(h => h.module_id === modSel && !ocupadas.has(h.id)).sort((x, y) => { const nx = natkey(x.name), ny = natkey(y.name); return nx < ny ? -1 : nx > ny ? 1 : 0; }); casaSel = free[0] ? free[0].id : null; }
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `<div class="dbody"><h2>${aid ? "Editar" : "Nova"} vistoria</h2>
     <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Data</label><input type="date" id="agData" value="${dataSel}"></div>
     <div class="field" style="flex:1"><label>Horário</label><select id="agHora">${horarios.map(hh => `<option ${hh === horaSel ? "selected" : ""}>${hh}</option>`).join("")}</select></div></div>
-    <div class="field"><label>Casa</label><select id="agCasa">${S.modules.slice().sort((a2, b2) => a2.name.localeCompare(b2.name)).map(m => { const hs = casas.filter(h => h.module_id === m.id); return hs.length ? `<optgroup label="${esc(m.name)}">${hs.map(h => `<option value="${h.id}" ${h.id === casaSel ? "selected" : ""}>${esc(h.name)}${h.vendida ? " ★" : ""}</option>`).join("")}</optgroup>` : ""; }).join("")}</select></div>
+    <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Módulo</label><select id="agMod">${S.modules.slice().sort((a2, b2) => a2.name.localeCompare(b2.name)).map(m => `<option value="${m.id}" ${m.id === modSel ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+    <div class="field" style="flex:1"><label>Casa</label><select id="agCasa">${optCasasAg(modSel, casaSel)}</select></div></div>
     <div class="field"><label>Comprador (cliente)</label><select id="agCliente"><option value="">— cliente —</option>${clientes.map(c => `<option value="${c.id}" ${a && a.cliente_id === c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select></div>
     <div class="field"><label>Observação (opcional)</label><input id="agObs" value="${esc(a ? a.obs || "" : "")}"></div>
     <p class="err" id="agErr" style="display:none"></p>
@@ -2256,6 +2267,7 @@ document.addEventListener("click", e => {
     case "rmAgend": { if (!confirm("Cancelar este agendamento?")) return; S.agendamentos = S.agendamentos.filter(a => a.id !== id); salvar(); return render(); }
     case "salvarAgend": {
       const casa = Number(document.getElementById("agCasa").value), cli = Number(document.getElementById("agCliente").value) || null, obs = document.getElementById("agObs").value.trim(), data = document.getElementById("agData").value, hora = document.getElementById("agHora").value, err = document.getElementById("agErr");
+      if (!casa) { err.textContent = "Escolha uma casa (as já agendadas não aparecem)."; err.style.display = "block"; return; }
       if (!data) { err.textContent = "Escolha a data."; err.style.display = "block"; return; }
       if (S.agendamentos.some(a => a.id !== id && a.date === data && a.hora === hora)) { err.textContent = "Já existe uma vistoria nesse dia e horário."; err.style.display = "block"; return; }
       if (id) { const a = S.agendamentos.find(x => x.id === id); Object.assign(a, { house_id: casa, cliente_id: cli, date: data, hora, obs: obs || null }); }
@@ -2305,6 +2317,7 @@ document.addEventListener("change", e => {
   if (e.target.id === "vistFCat") { vistFiltroCat = e.target.value; return render(); }
   if (e.target.id === "vistFSt") { vistFiltroStatus = e.target.value; return render(); }
   if (e.target.id === "vistCliente") { const h = IDX.house.get(vistCasa); if (h) { h.cliente_id = Number(e.target.value) || null; salvar(); } return; }
+  if (e.target.id === "agMod") { const sel = document.getElementById("agCasa"); if (sel) { sel.innerHTML = optCasasAg(e.target.value, null); sel.dispatchEvent(new Event("change", { bubbles: true })); } return; }
   if (e.target.id === "agCasa") { const h = IDX.house.get(Number(e.target.value)), sel = document.getElementById("agCliente"); if (h && h.cliente_id && sel && !sel.value) sel.value = String(h.cliente_id); return; }
   if (e.target.id === "peCat") { const tipos = S.vist_tipos.filter(t => t.categoria_id === Number(e.target.value)), sel = document.getElementById("peTipo"); if (sel) sel.innerHTML = '<option value="">—</option>' + tipos.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""); return; }
   if (e.target.id === "clMod") { const sel = document.getElementById("clCasa"); if (sel) sel.innerHTML = optCasasCli(e.target.value, Number(sel.dataset.cli) || "", null); return; }
