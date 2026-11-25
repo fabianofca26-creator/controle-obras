@@ -1287,8 +1287,6 @@ function vVistoria() {
       ${vendSemAgenda.length ? `<div style="margin-top:${vendSemCheck.length ? "6px" : "0"}">⚠ Vendidas sem vistoria agendada: ${linkCasas(vendSemAgenda)}</div>` : ""}
     </div>`;
   }
-  // vendidas primeiro (prioridade), depois o resto na ordem natural
-  const casasOrd = casas.slice().sort((a, b) => (b.vendida ? 1 : 0) - (a.vendida ? 1 : 0));
   const tileCasa = h => {
     const ps = pendDaCasa(h.id), ab = ps.filter(p => p.status !== "resolvida").length, feito = h.checklist_done_at;
     const status = ab ? ab + " pendente" + (ab > 1 ? "s" : "") : (ps.length ? "tudo resolvido" : (feito ? "checklist ok" : "sem checklist"));
@@ -1298,13 +1296,24 @@ function vVistoria() {
       <span class="st">${status}</span>
       ${h.vendida ? `<span class="tag in" style="align-self:flex-start">vendida</span>` : ""}</button>`;
   };
-  const tiles = casasOrd.map(tileCasa).join("");
+  // estágio da vistoria de cada casa, pelo agendamento mais recente
+  const statusCasa = h => {
+    const ags = S.agendamentos.filter(a => a.house_id === h.id).sort((a, b) => (a.date + a.hora).localeCompare(b.date + b.hora));
+    if (!ags.length) return "sem";
+    const last = ags[ags.length - 1];
+    return last.resultado === "aprovada" ? "aprovada" : last.resultado === "reprovada" ? "reprovada" : last.confirmado ? "confirmada" : "agendada";
+  };
+  const porStatus = {};
+  for (const h of casas) (porStatus[statusCasa(h)] = porStatus[statusCasa(h)] || []).push(h);
+  if (porStatus.sem) porStatus.sem.sort((a, b) => (b.vendida ? 1 : 0) - (a.vendida ? 1 : 0)); // vendidas sem vistoria primeiro
+  const GRUPOS = [["agendada", "Agendadas"], ["confirmada", "Presença confirmada"], ["aprovada", "Aprovadas"], ["reprovada", "Reprovadas"], ["sem", "Sem vistoria agendada"]];
+  const grid = GRUPOS.map(([k, label]) => { const hs = porStatus[k]; return hs && hs.length ? `<p class="sec-t">${label} · ${hs.length}</p><div class="casagrid">${hs.map(tileCasa).join("")}</div>` : ""; }).join("");
   // resumo das vistorias do módulo
   const hidSet = new Set(casas.map(h => h.id)), agsMod = S.agendamentos.filter(a => hidSet.has(a.house_id));
   const nAprov = agsMod.filter(a => a.resultado === "aprovada").length, nReprov = agsMod.filter(a => a.resultado === "reprovada").length, nAgend = agsMod.filter(a => !a.resultado).length;
   const kpiV = (l, v, cor) => `<div class="kpi"><p>${l}</p><b${cor ? ` style="color:${cor}"` : ""}>${v}</b></div>`;
   const kpis = `<div class="kpis">${kpiV("Agendadas", nAgend)}${kpiV("Vistoriadas", nAprov + nReprov)}${kpiV("Aprovadas", nAprov, "var(--ok-tx)")}${kpiV("Reprovadas", nReprov, "var(--er-tx)")}</div>`;
-  document.getElementById("main").innerHTML = ctrl + kpis + alertas + (tiles ? `<div class="casagrid">${tiles}</div>` : '<p class="mut">Nenhuma casa neste módulo.</p>');
+  document.getElementById("main").innerHTML = ctrl + kpis + alertas + (casas.length ? grid : '<p class="mut">Nenhuma casa neste módulo.</p>');
 }
 function vVistoriaCasa() {
   const h = IDX.house.get(vistCasa); if (!h) { vistCasa = null; return vVistoria(); }
