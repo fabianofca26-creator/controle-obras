@@ -1333,7 +1333,7 @@ function vVistoriaCasa() {
   const ags = S.agendamentos.filter(a => a.house_id === h.id).sort((a, b) => (a.date + a.hora).localeCompare(b.date + b.hora));
   const cardAgenda = `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:14px">Vistoria agendada</b><button class="btn sec sm" data-act="agendarCasa" style="width:auto">+ Agendar</button></div>
-    ${ags.length ? `<div class="rows" style="margin-top:8px">${ags.map(a => { const cl = S.clientes.find(c => c.id === a.cliente_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${fmtDate(a.date)} · ${a.hora}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }).join("")}</div>` : `<p class="mut" style="margin:8px 0 0;font-size:13px">Nenhuma vistoria agendada.</p>`}
+    ${ags.length ? `<div class="rows" style="margin-top:8px">${ags.map(a => { const cl = S.clientes.find(c => c.id === a.cliente_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${fmtDate(a.date)} · ${a.hora}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }).join("")}</div>` : `<p class="mut" style="margin:8px 0 0;font-size:13px">Nenhuma vistoria agendada.</p>`}
   </div>`;
   document.getElementById("main").innerHTML = `<button class="btn sec sm voltar" data-act="voltarVist">← Vistoria</button>
     ${cardVenda}
@@ -1428,7 +1428,7 @@ function vAgenda() {
     const ags = S.agendamentos.filter(a => a.date === agendaDia);
     slots = `<p class="sec-t">Horários — ${fmtDate(agendaDia)}</p>` + AG_HORARIOS().map(hora => {
       const a = ags.find(x => x.hora === hora);
-      if (a) { const h = IDX.house.get(a.house_id) || {}, cl = S.clientes.find(c => c.id === a.cliente_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${hora} · casa ${esc(h.name || "?")}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }
+      if (a) { const h = IDX.house.get(a.house_id) || {}, cl = S.clientes.find(c => c.id === a.cliente_id) || {}; return `<div class="row" style="cursor:default"><div class="g"><b>${hora} · casa ${esc(h.name || "?")}</b><small>${esc(cl.nome || "sem cliente")}${a.obs ? " · " + esc(a.obs) : ""}</small></div><button class="btn sec sm" data-act="msgVistoria" data-id="${a.id}" style="width:auto">Msg</button><button class="btn sec sm" data-act="editarAgend" data-id="${a.id}">✎</button><button class="btn er sm" data-act="rmAgend" data-id="${a.id}">✕</button></div>`; }
       return `<button class="row" data-act="novoAgend" data-hora="${hora}"><div class="g"><b>${hora}</b><small>livre</small></div><span class="mut">+ agendar</span></button>`;
     }).join("");
   } else slots = '<p class="mut" style="margin-top:12px">Toque num dia (útil) para ver e marcar horários.</p>';
@@ -1471,9 +1471,30 @@ function formAgend(aid, hora, casaFixa) {
   // ao abrir, se a casa escolhida tem cliente vinculado e nenhum cliente marcado, sugere
   if (!a && casaSel) { const h0 = IDX.house.get(casaSel); if (h0 && h0.cliente_id) document.getElementById("agCliente").value = String(h0.cliente_id); }
 }
-let cfgHorTmp = null, cfgDiaTmp = null;
+function textoVistoria(a) {
+  const h = IDX.house.get(a.house_id) || {}, mod = IDX.module.get(h.module_id) || {}, cl = S.clientes.find(c => c.id === a.cliente_id) || {};
+  const emp = S.config.empresa || "AB FORTE";
+  const cond = S.config.condominio ? ` no condomínio ${S.config.condominio}` : "";
+  const modTxt = mod.name ? `, ${mod.name}` : "";
+  const ola = cl.nome ? `Olá, ${cl.nome}! ` : "Olá! ";
+  return `${ola}Aqui é da ${emp}. Gostaríamos de agendar a vistoria da sua residência (${h.name || "casa"}${cond}${modTxt}) no dia ${fmtDate(a.date)} às ${a.hora}, na própria residência. Podemos confirmar?`;
+}
+function dlgMsgVistoria(aid) {
+  const a = S.agendamentos.find(x => x.id === aid); if (!a) return;
+  const txt = textoVistoria(a), cl = S.clientes.find(c => c.id === a.cliente_id) || {}, tel = (cl.telefone || "").replace(/\D/g, "");
+  const num = tel ? (tel.length > 11 && tel.startsWith("55") ? tel : "55" + tel) : "";
+  const wa = num ? `https://wa.me/${num}?text=${encodeURIComponent(txt)}` : "";
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<div class="dbody"><h2>Mensagem para o cliente</h2>
+    <div class="field" style="margin-top:8px"><textarea id="msgTxt" rows="6">${esc(txt)}</textarea></div>
+    ${wa ? "" : `<p class="mut" style="font-size:12px;margin:0 0 8px">Sem telefone do cliente — copie o texto e envie manualmente.</p>`}
+    <div class="dacts" style="flex-wrap:wrap"><button class="btn sec" data-act="fecharDlg">Fechar</button><button class="btn" data-act="copiarMsg">Copiar</button>${wa ? `<a class="btn" href="${wa}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;line-height:40px">WhatsApp</a>` : ""}</div></div>`;
+  dlg.showModal();
+}
+let cfgHorTmp = null, cfgDiaTmp = null, cfgEmpTmp = "", cfgCondTmp = "";
+function capCfgCampos() { const e = document.getElementById("cfgEmp"), c = document.getElementById("cfgCond"); if (e) cfgEmpTmp = e.value; if (c) cfgCondTmp = c.value; }
 function formConfigAgenda() {
-  if (cfgHorTmp === null) { cfgHorTmp = AG_HORARIOS().slice(); cfgDiaTmp = AG_DIAS().slice(); }
+  if (cfgHorTmp === null) { cfgHorTmp = AG_HORARIOS().slice(); cfgDiaTmp = AG_DIAS().slice(); cfgEmpTmp = S.config.empresa || "AB FORTE"; cfgCondTmp = S.config.condominio || ""; }
   const dlg = document.getElementById("dlg"), nomes = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const horas = cfgHorTmp.slice().sort();
   dlg.innerHTML = `<div class="dbody"><h2>Horários e dias</h2>
@@ -1482,6 +1503,9 @@ function formConfigAgenda() {
     <label style="font-size:12px;color:var(--tx2)">Horários disponíveis</label>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px">${horas.length ? horas.map(h => `<span class="tag in" style="display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;font-size:13px">${h}<button data-act="rmCfgHor" data-hora="${h}" style="border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join("") : '<span class="mut" style="font-size:13px">Nenhum horário.</span>'}</div>
     <div style="display:flex;gap:8px;margin-bottom:4px"><input type="time" id="cfgNovoHor" step="1800" style="flex:1"><button class="btn sec sm" data-act="addCfgHor" style="width:auto">Adicionar</button></div>
+    <label style="font-size:12px;color:var(--tx2);display:block;margin-top:14px">Dados para a mensagem ao cliente</label>
+    <div class="field" style="margin-top:4px"><label>Empresa</label><input id="cfgEmp" value="${esc(cfgEmpTmp)}"></div>
+    <div class="field"><label>Condomínio</label><input id="cfgCond" value="${esc(cfgCondTmp)}" placeholder="ex: Alvorada 03"></div>
     <div class="dacts"><button class="btn sec" data-act="cancelCfgAgenda">Cancelar</button><button class="btn" data-act="salvarConfigAgenda">Salvar</button></div></div>`;
   if (!dlg.open) dlg.showModal();
 }
@@ -1894,7 +1918,7 @@ function formNotaCasa(hid) {
 }
 
 // ---------- eventos ----------
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
   const t = e.target.closest("[data-act]");
   if (!t) return;
   const id = t.dataset.id ? Number(t.dataset.id) : null;
@@ -2275,16 +2299,20 @@ document.addEventListener("click", e => {
       salvar(); dlg.close(); return render();
     }
     case "configAgenda": return formConfigAgenda();
-    case "togCfgDia": { const d = Number(t.dataset.dow); cfgDiaTmp = cfgDiaTmp.includes(d) ? cfgDiaTmp.filter(x => x !== d) : [...cfgDiaTmp, d]; return formConfigAgenda(); }
-    case "addCfgHor": { const el = document.getElementById("cfgNovoHor"), v = el.value; if (v && /^\d{2}:\d{2}$/.test(v) && !cfgHorTmp.includes(v)) cfgHorTmp.push(v); el.value = ""; return formConfigAgenda(); }
-    case "rmCfgHor": { cfgHorTmp = cfgHorTmp.filter(h => h !== t.dataset.hora); return formConfigAgenda(); }
+    case "togCfgDia": { capCfgCampos(); const d = Number(t.dataset.dow); cfgDiaTmp = cfgDiaTmp.includes(d) ? cfgDiaTmp.filter(x => x !== d) : [...cfgDiaTmp, d]; return formConfigAgenda(); }
+    case "addCfgHor": { capCfgCampos(); const el = document.getElementById("cfgNovoHor"), v = el.value; if (v && /^\d{2}:\d{2}$/.test(v) && !cfgHorTmp.includes(v)) cfgHorTmp.push(v); el.value = ""; return formConfigAgenda(); }
+    case "rmCfgHor": { capCfgCampos(); cfgHorTmp = cfgHorTmp.filter(h => h !== t.dataset.hora); return formConfigAgenda(); }
     case "cancelCfgAgenda": { cfgHorTmp = cfgDiaTmp = null; dlg.close(); return; }
     case "salvarConfigAgenda": {
+      capCfgCampos();
       S.config.agendaHorarios = cfgHorTmp.length ? cfgHorTmp.slice().sort() : null;
       S.config.agendaDias = cfgDiaTmp.length ? cfgDiaTmp.slice().sort((a, b) => a - b) : null;
+      S.config.empresa = cfgEmpTmp.trim() || null; S.config.condominio = cfgCondTmp.trim() || null;
       cfgHorTmp = cfgDiaTmp = null;
       salvar(); dlg.close(); return render();
     }
+    case "msgVistoria": return dlgMsgVistoria(id);
+    case "copiarMsg": { const ta = document.getElementById("msgTxt"); ta.select(); try { await navigator.clipboard.writeText(ta.value); } catch { try { document.execCommand("copy"); } catch { } } t.textContent = "Copiado!"; return; }
     case "addFoto": fotoPendId = id; return document.getElementById("fileFoto").click();
     case "verFoto": return verFoto(id);
     case "rmFoto": { if (!confirm("Excluir esta foto?")) return; return excluirFoto(id); }
