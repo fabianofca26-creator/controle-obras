@@ -1298,7 +1298,12 @@ function vVistoria() {
       ${h.vendida ? `<span class="tag in" style="align-self:flex-start">vendida</span>` : ""}</button>`;
   };
   const tiles = casasOrd.map(tileCasa).join("");
-  document.getElementById("main").innerHTML = ctrl + alertas + (tiles ? `<div class="casagrid">${tiles}</div>` : '<p class="mut">Nenhuma casa neste módulo.</p>');
+  // resumo das vistorias do módulo
+  const hidSet = new Set(casas.map(h => h.id)), agsMod = S.agendamentos.filter(a => hidSet.has(a.house_id));
+  const nAprov = agsMod.filter(a => a.resultado === "aprovada").length, nReprov = agsMod.filter(a => a.resultado === "reprovada").length, nAgend = agsMod.filter(a => !a.resultado).length;
+  const kpiV = (l, v, cor) => `<div class="kpi"><p>${l}</p><b${cor ? ` style="color:${cor}"` : ""}>${v}</b></div>`;
+  const kpis = `<div class="kpis">${kpiV("Agendadas", nAgend)}${kpiV("Vistoriadas", nAprov + nReprov)}${kpiV("Aprovadas", nAprov, "var(--ok-tx)")}${kpiV("Reprovadas", nReprov, "var(--er-tx)")}</div>`;
+  document.getElementById("main").innerHTML = ctrl + kpis + alertas + (tiles ? `<div class="casagrid">${tiles}</div>` : '<p class="mut">Nenhuma casa neste módulo.</p>');
 }
 function vVistoriaCasa() {
   const h = IDX.house.get(vistCasa); if (!h) { vistCasa = null; return vVistoria(); }
