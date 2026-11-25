@@ -1268,11 +1268,12 @@ const nomeTipo = id => (S.vist_tipos.find(t => t.id === id) || {}).name || "";
 function vVistoria() {
   seedVistoria();
   if (vistCasa) return vVistoriaCasa();
-  const mods = S.modules.slice().sort((a, b) => a.name.localeCompare(b.name));
-  if (!vistMod && mods.length) vistMod = String(mods[0].id);
+  const ocultos = S.config.vistModsOcultos || [];
+  const mods = S.modules.filter(m => !ocultos.includes(m.id)).sort((a, b) => a.name.localeCompare(b.name));
+  if ((!vistMod || !mods.some(m => m.id == vistMod)) && mods.length) vistMod = String(mods[0].id);
   const mid = Number(vistMod), casas = casasDoModulo(mid);
   topo("Vistoria", (IDX.module.get(mid) || {}).name || "");
-  const ctrl = `<div style="margin-bottom:10px"><select id="vistMod">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+  const ctrl = `<div style="display:flex;gap:8px;margin-bottom:10px"><select id="vistMod" style="flex:1">${mods.map(m => `<option value="${m.id}" ${vistMod == m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select><button class="btn sec sm" data-act="vistMods" style="width:auto">Módulos</button></div>
     <div class="vist-nav"><button class="btn sec sm" data-act="irTela" data-tela="agenda">Agenda</button><button class="btn sec sm" data-act="irTela" data-tela="vistrel">Relatório</button><button class="btn sec sm" data-act="irTela" data-tela="clientes">Clientes</button><button class="btn sec sm" data-act="irTela" data-tela="visttipos">Categorias</button></div>`;
   // alertas do módulo: 1º vendida sem checklist (não está pronta), depois pronta sem vistoria agendada
   const temAgend = hid => S.agendamentos.some(a => a.house_id === hid);
@@ -1508,6 +1509,15 @@ function dlgMsgVistoria(aid) {
     ${wa ? "" : `<p class="mut" style="font-size:12px;margin:0 0 8px">Sem telefone do cliente — copie o texto e envie manualmente.</p>`}
     <div class="dacts" style="flex-wrap:wrap"><button class="btn sec" data-act="fecharDlg">Fechar</button><button class="btn" data-act="copiarMsg">Copiar</button>${wa ? `<a class="btn" href="${wa}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;line-height:40px">WhatsApp</a>` : ""}</div></div>`;
   dlg.showModal();
+}
+function formVistMods() {
+  const ocultos = S.config.vistModsOcultos || [], dlg = document.getElementById("dlg");
+  const mods = S.modules.slice().sort((a, b) => a.name.localeCompare(b.name));
+  dlg.innerHTML = `<div class="dbody"><h2>Módulos na vistoria</h2>
+    <p class="mut" style="font-size:12px;margin:0 0 8px">Oculte os módulos que não quer ver na tela de vistoria (não apaga nada).</p>
+    <div class="rows">${mods.map(m => { const on = !ocultos.includes(m.id); return `<div class="row" style="cursor:default"><div class="g"><b>${esc(m.name)}</b></div><button class="chip" data-act="togVistMod" data-id="${m.id}" aria-pressed="${on}" style="margin:0${on ? ";background:var(--in-bg);color:var(--in-tx);border-color:transparent" : ""}">${on ? "Ativo" : "Oculto"}</button></div>`; }).join("") || '<p class="mut">Nenhum módulo.</p>'}</div>
+    <div class="dacts"><button class="btn" data-act="fecharDlg">Fechar</button></div></div>`;
+  if (!dlg.open) dlg.showModal();
 }
 let cfgHorTmp = null, cfgDiaTmp = null, cfgEmpTmp = "", cfgCondTmp = "";
 function capCfgCampos() { const e = document.getElementById("cfgEmp"), c = document.getElementById("cfgCond"); if (e) cfgEmpTmp = e.value; if (c) cfgCondTmp = c.value; }
@@ -2317,6 +2327,8 @@ document.addEventListener("click", async e => {
       else S.agendamentos.push({ id: nextId("agendamentos"), house_id: casa, cliente_id: cli, date: data, hora, obs: obs || null });
       salvar(); dlg.close(); return render();
     }
+    case "vistMods": return formVistMods();
+    case "togVistMod": { const o = S.config.vistModsOcultos || []; S.config.vistModsOcultos = o.includes(id) ? o.filter(x => x !== id) : [...o, id]; salvar(); render(); return formVistMods(); }
     case "configAgenda": return formConfigAgenda();
     case "togCfgDia": { capCfgCampos(); const d = Number(t.dataset.dow); cfgDiaTmp = cfgDiaTmp.includes(d) ? cfgDiaTmp.filter(x => x !== d) : [...cfgDiaTmp, d]; return formConfigAgenda(); }
     case "addCfgHor": { capCfgCampos(); const el = document.getElementById("cfgNovoHor"), v = el.value; if (v && /^\d{2}:\d{2}$/.test(v) && !cfgHorTmp.includes(v)) cfgHorTmp.push(v); el.value = ""; return formConfigAgenda(); }
